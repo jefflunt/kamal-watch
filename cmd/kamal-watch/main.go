@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"kamal-watch/config"
-	"kamal-watch/pkg/monitor"
-	"kamal-watch/pkg/remote"
-	"kamal-watch/pkg/web"
+	"github.com/jefflunt/kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/pkg/monitor"
+	"github.com/jefflunt/kamal-watch/pkg/remote"
+	"github.com/jefflunt/kamal-watch/pkg/web"
 )
 
 func main() {

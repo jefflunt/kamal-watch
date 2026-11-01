@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/config"
 )
 
 func TestFaviconEndpoints(t *testing.T) {

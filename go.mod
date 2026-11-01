@@ -1,4 +1,4 @@
-module kamal-watch
+module github.com/jefflunt/kamal-watch
 
 go 1.26.0
 

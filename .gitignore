@@ -2,11 +2,14 @@ bin/
 /kamal-watch
 .DS_Store
 
-# Local runtime & Kamal deployment configs, secrets, and TLS keys
-kamal-watch.yml
+# Local runtime & Kamal deployment configs, secrets, and keys
+*kamal-watch*.yml
+!kamal-watch.example.yml
 .kamal/
 config/deploy*.yml
 config/tls/
 *.pem
 *.key
+id_rsa*
+id_ed25519*
 .env*

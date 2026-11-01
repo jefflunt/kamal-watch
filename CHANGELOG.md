@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-11-01
+
+### Added
+- MIT `LICENSE` for open-source distribution.
+- Public quickstart `README.md` covering design philosophy, early-alpha private-network security warnings, local setup, Docker usage, and self-hosted Kamal deployment.
+
+### Changed
+- Updated Go module path to `github.com/jefflunt/kamal-watch` to support direct `go install`.
+- Added `-trimpath` to `cmd/build` and `Dockerfile` builds to strip local filesystem paths from compiled binaries.
+- Defaulted `kamal-watch.example.yml` to `127.0.0.1:8080` and tightened `.gitignore` and `.dockerignore` rules for config and SSH key patterns.
+
 ## [0.2.1] - 2026-11-01
 
 ### Changed

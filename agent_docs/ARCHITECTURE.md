@@ -1,7 +1,7 @@
 # Architecture & System Design
 
 ## Overview
-`kamal-watch` is an agentic, lightweight multi-server telemetry dashboard and log observer designed specifically for observing applications deployed with [Kamal](https://kamal-deploy.org/).
+`kamal-watch` (`github.com/jefflunt/kamal-watch`) is an agentless, lightweight multi-server telemetry dashboard and log observer designed specifically for observing applications deployed with [Kamal](https://kamal-deploy.org/). It operates strictly inside private networks (`127.0.0.1`, LAN, VPC, or VPN) and polls target hosts directly over SSH without installing host-side agents.
 
 ## Core Components
 

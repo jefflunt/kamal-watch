@@ -1,8 +1,10 @@
-listen_addr: ":8080"
+# Bind to 127.0.0.1 when running locally; use ":8080" inside Docker/Kamal on a private network
+listen_addr: "127.0.0.1:8080"
 poll_interval: 4s
+
 servers:
   - name: app-server-01
-    host: 203.0.113.10
+    host: 10.0.1.10
     port: 22
     user: deploy
     key_path: ~/.ssh/id_ed25519

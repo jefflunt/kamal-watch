@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"kamal-watch/config"
-	"kamal-watch/pkg/models"
-	"kamal-watch/pkg/remote"
+	"github.com/jefflunt/kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/pkg/models"
+	"github.com/jefflunt/kamal-watch/pkg/remote"
 )
 
 type Monitor struct {

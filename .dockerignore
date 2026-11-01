@@ -1,10 +1,13 @@
 .git
 bin/
-kamal-watch.yml
+*kamal-watch*.yml
+!kamal-watch.example.yml
 .kamal/
 config/deploy*.yml
 config/tls/
 *.pem
 *.key
+id_rsa*
+id_ed25519*
 .env*
 .DS_Store

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/config"
 
 	"golang.org/x/crypto/ssh"
 )
