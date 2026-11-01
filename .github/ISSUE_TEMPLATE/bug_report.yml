@@ -1,0 +1,49 @@
+name: Bug report
+description: Create a report to help us improve or fix a bug or security issue
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! If you are an AI agent, please review [CONTRIBUTING.md](../../CONTRIBUTING.md) before submitting.
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: A clear and concise description of what the bug is or where the vulnerability lies.
+      placeholder: Describe what happened or what security weakness exists.
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Code Location(s)
+      description: Exact file paths and line ranges in the repository.
+      placeholder: e.g. pkg/remote/ssh.go:74
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps or commands to reproduce the issue.
+      placeholder: |
+        1. Run '...'
+        2. Observe '...'
+    validations:
+      required: false
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution / Fix
+      description: Ideas, pseudo-code, or pull request suggestions to resolve this issue.
+    validations:
+      required: false
