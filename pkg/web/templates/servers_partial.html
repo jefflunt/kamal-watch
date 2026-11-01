@@ -1,0 +1,266 @@
+    {{ range $srv := .Servers }}
+    <div class="border border-[#30363d] bg-[#161b22] rounded-md overflow-hidden shadow-lg w-full mb-4">
+
+      <!-- HTOP METERS PANEL -->
+      <div class="p-3 bg-[#0d1117] border-b border-[#30363d]">
+        <div class="flex flex-wrap items-center justify-between pb-2 mb-2 border-b border-[#21262d] text-xs">
+          <div class="flex items-center gap-2 font-mono">
+            <span class="text-[#58a6ff] font-bold text-sm">SERVER: {{ $srv.ServerName }}</span>
+            <span class="text-[#8b949e]">({{ $srv.Host }})</span>
+            {{ if $srv.Online }}
+              <span class="bg-[#238636]/20 border border-[#238636] text-[#7ee787] px-1.5 py-0.2 rounded text-[10px]">ONLINE</span>
+            {{ else }}
+              <span class="bg-[#da3633]/20 border border-[#da3633] text-[#f85149] px-1.5 py-0.2 rounded text-[10px]">OFFLINE: {{ $srv.Error }}</span>
+            {{ end }}
+          </div>
+
+          <div class="text-[#8b949e] font-mono text-[11px] space-x-3">
+            <span>Uptime: <span class="text-[#c9d1d9]">{{ $srv.Health.Uptime }}</span></span>
+            <span>Load average: <span class="text-[#d29922] font-semibold">{{ $srv.Health.LoadAvg }}</span></span>
+            <span>Polled: <span class="text-[#79c0ff]">{{ $srv.LastPolled.Format "15:04:05" }}</span></span>
+          </div>
+        </div>
+
+        {{ if $srv.Online }}
+        <!-- 2-Column HTOP Meter Gauges -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 font-mono text-[11px]">
+          <!-- Left Column: CPU & Cores & Disk -->
+          <div class="space-y-1.5">
+            <!-- CPU Meter -->
+            <div>
+              <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
+                <span class="text-[#58a6ff] font-semibold">1 [CPU Total: {{ $srv.Health.CPUCores }} Cores]</span>
+                <span class="text-[#c9d1d9]">{{ printf "%.1f" $srv.Health.CPUUsagePerc }}%</span>
+              </div>
+              <div class="meter-bar rounded-sm">
+                <div class="meter-fill-cpu h-full" style="width: {{ printf "%.1f" $srv.Health.CPUUsagePerc }}%;"></div>
+              </div>
+            </div>
+
+            <!-- Root Disk Meter -->
+            <div>
+              <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
+                <span class="text-[#58a6ff]">Disk [/root]</span>
+                <span class="text-[#c9d1d9]">{{ $srv.Health.DiskUsage }}</span>
+              </div>
+              <div class="meter-bar rounded-sm">
+                <div class="meter-fill-disk h-full" style="width: 10%;"></div>
+              </div>
+            </div>
+
+            <!-- Tasks Summary -->
+            <div class="text-[11px] text-[#8b949e] pt-1">
+              {{ if $srv.Health.TasksSummary }}
+                <span class="text-[#7ee787]">{{ $srv.Health.TasksSummary }}</span>
+              {{ else }}
+                <span>Docker Engine: <span class="text-[#7ee787]">Active</span></span>
+              {{ end }}
+            </div>
+          </div>
+
+          <!-- Right Column: Memory & Swap -->
+          <div class="space-y-1.5">
+            <!-- RAM Meter -->
+            <div>
+              <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
+                <span class="text-[#bc8cff] font-semibold">Mem [Used / Total]</span>
+                <span class="text-[#c9d1d9]">{{ $srv.Health.MemUsed }} / {{ $srv.Health.MemTotal }} (Avail: {{ $srv.Health.MemAvailable }})</span>
+              </div>
+              <div class="meter-bar rounded-sm">
+                <div class="meter-fill-mem h-full" style="width: 7%;"></div>
+              </div>
+            </div>
+
+            <!-- Swap Meter -->
+            <div>
+              <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
+                <span class="text-[#d29922]">Swp [Used / Total]</span>
+                <span class="text-[#c9d1d9]">{{ $srv.Health.SwapUsed }} / {{ $srv.Health.SwapTotal }}</span>
+              </div>
+              <div class="meter-bar rounded-sm">
+                <div class="meter-fill-swap h-full" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Infrastructure Badges -->
+            <div class="flex items-center gap-3 pt-1 text-[11px]">
+              <span>Kamal Proxy: <span class="{{ if $srv.ProxyRunning }}text-[#7ee787]{{ else }}text-[#f85149]{{ end }}">{{ if $srv.ProxyRunning }}RUNNING (:443/:8090){{ else }}STOPPED{{ end }}</span></span>
+              <span class="text-[#30363d]">|</span>
+              <span>Registry: <span class="{{ if $srv.RegistryRunning }}text-[#7ee787]{{ else }}text-[#8b949e]{{ end }}">{{ if $srv.RegistryRunning }}ACTIVE (:5000){{ else }}INACTIVE{{ end }}</span></span>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+      </div>
+
+      <!-- PROCESS / LOGICAL SERVICES HTOP TABLE -->
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left font-mono text-xs border-collapse">
+          <thead>
+            <tr class="bg-[#1f242c] text-[#8b949e] border-b border-[#30363d] select-none text-[11px]">
+              <th class="py-1.5 px-3 w-10 text-center">TOGGLE</th>
+              <th class="py-1.5 px-3">LOGICAL SERVICE / CONTAINERS</th>
+              <th class="py-1.5 px-3 w-28">ROLE</th>
+              <th class="py-1.5 px-3 w-24">STATUS</th>
+              <th class="py-1.5 px-3 w-20 text-right">CPU%</th>
+              <th class="py-1.5 px-3 w-20 text-right">MEM%</th>
+              <th class="py-1.5 px-3 w-36 text-right">MEM USAGE</th>
+              <th class="py-1.5 px-3 w-32 text-right">NET I/O</th>
+              <th class="py-1.5 px-3 w-24 text-right">VERSION</th>
+              <th class="py-1.5 px-3 w-28 text-center">ACTION</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#21262d]">
+
+            {{ range $appName, $app := $srv.Apps }}
+            <!-- LOGICAL SERVICE HEADER ROW (Collapsible on 4-dot marker or row) -->
+            <tr class="bg-[#161b22] hover:bg-[#1c2128] transition-colors border-t border-[#30363d] font-semibold cursor-pointer select-none group" onclick="toggleService('{{ $srv.ServerName }}-{{ $appName }}')">
+              <!-- Collapsible 4-dot indicator button -->
+              <td class="py-2 px-3 text-center" title="Click to collapse/expand">
+                <button type="button" class="text-[#d29922] hover:text-white transition-transform duration-150 inline-block font-bold text-xs" id="icon-{{ $srv.ServerName }}-{{ $appName }}">
+                  + 
+                </button>
+              </td>
+              <td class="py-2 px-3 text-white flex items-center gap-2">
+                <a href="/server/{{ $srv.ServerName }}/app/{{ $appName }}" onclick="event.stopPropagation()" class="text-[#58a6ff] hover:underline font-bold text-[13px] flex items-center gap-1.5">
+                  <span class="text-[#8b949e] font-normal">[service]</span> {{ $appName }}
+                </a>
+                {{ if $app.ProxyRoute }}
+                  <span class="text-[#7ee787] text-[10px] bg-[#238636]/20 px-1 py-0.2 rounded border border-[#238636]/50">
+                    {{ $app.ProxyRoute.Host }}
+                  </span>
+                {{ end }}
+                <span class="text-[#8b949e] text-[10px] font-normal">({{ $app.Aggregates.RunningContainers }}/{{ $app.Aggregates.TotalContainers }} running)</span>
+              </td>
+              <td class="py-2 px-3 text-[#8b949e] font-normal">group total</td>
+              <td class="py-2 px-3">
+                <span class="text-[#7ee787]">active</span>
+              </td>
+              <!-- Service Aggregate CPU% -->
+              <td class="py-2 px-3 text-right font-bold {{ if gt $app.Aggregates.TotalCPU 5.0 }}text-[#f85149]{{ else if gt $app.Aggregates.TotalCPU 1.0 }}text-[#d29922]{{ else }}text-[#7ee787]{{ end }}">
+                {{ printf "%.2f" $app.Aggregates.TotalCPU }}%
+              </td>
+              <!-- Service Aggregate MEM% -->
+              <td class="py-2 px-3 text-right font-bold text-[#bc8cff]">
+                {{ printf "%.2f" $app.Aggregates.TotalMemPerc }}%
+              </td>
+              <!-- Service Aggregate MEM USAGE -->
+              <td class="py-2 px-3 text-right font-semibold text-[#c9d1d9]">
+                {{ if $app.Aggregates.TotalMemUsage }}{{ $app.Aggregates.TotalMemUsage }}{{ else }}-{{ end }}
+              </td>
+              <!-- Service NET I/O -->
+              <td class="py-2 px-3 text-right text-[#8b949e] font-normal">-</td>
+              <td class="py-2 px-3 text-right text-[#c9d1d9] font-normal">
+                {{ if $app.ActiveVersion }}{{ shortHash $app.ActiveVersion }}{{ else }}-{{ end }}
+              </td>
+              <td class="py-2 px-3 text-center" onclick="event.stopPropagation()">
+                <a href="/server/{{ $srv.ServerName }}/app/{{ $appName }}" class="text-[#58a6ff] hover:text-white text-[11px] underline">
+                  History
+                </a>
+              </td>
+            </tr>
+
+            <!-- 1. Web Instances -->
+            {{ range $app.WebInstances }}
+            <tr data-service="{{ $srv.ServerName }}-{{ $appName }}" class="service-child-{{ $srv.ServerName }}-{{ $appName }} hidden bg-[#0d1117]/70 hover:bg-[#161b22] transition-colors text-[11px]">
+              <td class="py-1 px-3 text-center text-[#30363d]">|--</td>
+              <td class="py-1 px-3 pl-6 font-mono text-[#c9d1d9]">
+                <span class="text-[#7ee787]">web:</span> {{ .Name }}
+                <span class="text-[#8b949e] text-[10px]">[{{ shortHash .ID }}]</span>
+              </td>
+              <td class="py-1 px-3 text-[#79c0ff]">web</td>
+              <td class="py-1 px-3 text-[#7ee787]">{{ .Status }}</td>
+              <td class="py-1 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#bc8cff]">{{ printf "%.2f" .Stats.MemPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#c9d1d9]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Stats.NetIO }}{{ .Stats.NetIO }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Version }}{{ shortHash .Version }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-center">
+                <button onclick="openLogViewer('{{ $srv.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px] transition-colors">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            <!-- 2. Job Instances -->
+            {{ range $app.JobInstances }}
+            <tr data-service="{{ $srv.ServerName }}-{{ $appName }}" class="service-child-{{ $srv.ServerName }}-{{ $appName }} hidden bg-[#0d1117]/70 hover:bg-[#161b22] transition-colors text-[11px]">
+              <td class="py-1 px-3 text-center text-[#30363d]">|--</td>
+              <td class="py-1 px-3 pl-6 font-mono text-[#c9d1d9]">
+                <span class="text-[#d29922]">job:</span> {{ .Name }}
+                <span class="text-[#8b949e] text-[10px]">[{{ shortHash .ID }}]</span>
+              </td>
+              <td class="py-1 px-3 text-[#d29922]">job/worker</td>
+              <td class="py-1 px-3 text-[#7ee787]">{{ .Status }}</td>
+              <td class="py-1 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#bc8cff]">{{ printf "%.2f" .Stats.MemPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#c9d1d9]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Stats.NetIO }}{{ .Stats.NetIO }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Version }}{{ shortHash .Version }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-center">
+                <button onclick="openLogViewer('{{ $srv.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px] transition-colors">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            <!-- 3. Accessories (Database, Redis, etc.) -->
+            {{ range $app.Accessories }}
+            <tr data-service="{{ $srv.ServerName }}-{{ $appName }}" class="service-child-{{ $srv.ServerName }}-{{ $appName }} hidden bg-[#0d1117]/70 hover:bg-[#161b22] transition-colors text-[11px]">
+              <td class="py-1 px-3 text-center text-[#30363d]">|--</td>
+              <td class="py-1 px-3 pl-6 font-mono text-[#c9d1d9]">
+                <span class="text-[#bc8cff]">accessory:</span> {{ .Name }}
+                <span class="text-[#8b949e] text-[10px]">[{{ .Image }}]</span>
+              </td>
+              <td class="py-1 px-3 text-[#bc8cff]">accessory</td>
+              <td class="py-1 px-3 {{ if eq .State "running" }}text-[#7ee787]{{ else }}text-[#8b949e]{{ end }}">{{ .Status }}</td>
+              <td class="py-1 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#bc8cff]">{{ printf "%.2f" .Stats.MemPerc }}%</td>
+              <td class="py-1 px-3 text-right text-[#c9d1d9]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Stats.NetIO }}{{ .Stats.NetIO }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-right text-[#8b949e]">{{ if .Version }}{{ .Version }}{{ else }}-{{ end }}</td>
+              <td class="py-1 px-3 text-center">
+                <button onclick="openLogViewer('{{ $srv.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px] transition-colors">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            <!-- 4. Old / Exited Containers -->
+            {{ range $app.OldInstances }}
+            <tr data-service="{{ $srv.ServerName }}-{{ $appName }}" class="service-child-{{ $srv.ServerName }}-{{ $appName }} hidden bg-[#0c1017] hover:bg-[#161b22] text-[#8b949e] text-[10px]">
+              <td class="py-1 px-3 text-center text-[#30363d]">|..</td>
+              <td class="py-1 px-3 pl-8 font-mono text-[#6e7681]">
+                <span class="text-[#da3633]">exited:</span> {{ .Name }}
+              </td>
+              <td class="py-1 px-3 text-[#6e7681]">{{ .Role }}</td>
+              <td class="py-1 px-3 text-[#6e7681]">{{ .Status }}</td>
+              <td class="py-1 px-3 text-right text-[#6e7681]">0.00%</td>
+              <td class="py-1 px-3 text-right text-[#6e7681]">0.00%</td>
+              <td class="py-1 px-3 text-right text-[#6e7681]">-</td>
+              <td class="py-1 px-3 text-right text-[#6e7681]">-</td>
+              <td class="py-1 px-3 text-right text-[#6e7681]">{{ shortHash .Version }}</td>
+              <td class="py-1 px-3 text-center">
+                <button onclick="openLogViewer('{{ $srv.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#161b22] hover:bg-[#21262d] text-[#8b949e] px-1.5 py-0.2 rounded text-[10px]">
+                  logs
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            {{ else }}
+            <tr>
+              <td colspan="10" class="py-8 text-center text-[#8b949e]">
+                No active Kamal applications discovered on this host.
+              </td>
+            </tr>
+            {{ end }}
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {{ end }}

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0c1017] text-[#c9d1d9]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KAMAL WATCH</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+          },
+          colors: {
+            htop: {
+              bg: '#0c1017',
+              panel: '#161b22',
+              border: '#30363d',
+              barbg: '#21262d',
+              green: '#2ea043',
+              cyan: '#388bfd',
+              magenta: '#bc8cff',
+              yellow: '#d29922',
+              red: '#f85149',
+              blue: '#58a6ff',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "JetBrains Mono", ui-monospace, monospace; }
+    .meter-bar {
+      height: 10px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+    .meter-fill-cpu { background: linear-gradient(90deg, #2ea043 0%, #388bfd 50%, #d29922 80%, #f85149 100%); }
+    .meter-fill-mem { background: linear-gradient(90deg, #388bfd 0%, #bc8cff 60%, #d29922 90%); }
+    .meter-fill-swap { background: linear-gradient(90deg, #d29922 0%, #f85149 100%); }
+    .meter-fill-disk { background: linear-gradient(90deg, #2ea043 0%, #388bfd 70%, #d29922 95%); }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .pulse-dot { animation: pulse-dot 1.5s infinite; }
+  </style>
+</head>
+<body class="min-h-full flex flex-col bg-[#0c1017] text-[#c9d1d9] text-xs antialiased selection:bg-[#388bfd]/30 selection:text-white">
+
+  <!-- HTOP Top Header / Navigation (Full Width) -->
+  <header class="border-b border-[#30363d] bg-[#161b22]/90 sticky top-0 z-40 backdrop-blur w-full">
+    <div class="w-full px-3 sm:px-4 py-2 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-2.5 font-bold text-sm tracking-wide text-[#58a6ff] hover:text-white group">
+          <svg class="w-5 h-5 transition-transform duration-150 group-hover:scale-105 shrink-0" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+            <path d="M11 8H7V24H11" stroke="#58a6ff" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"/>
+            <path d="M21 8H25V24H21" stroke="#58a6ff" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"/>
+            <line x1="10" y1="16" x2="13.5" y2="16" stroke="#2ea043" stroke-width="2"/>
+            <line x1="18.5" y1="16" x2="22" y2="16" stroke="#2ea043" stroke-width="2"/>
+            <circle cx="16" cy="16" r="2.75" fill="#7ee787"/>
+          </svg>
+          <span>KAMAL-WATCH</span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs font-mono">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-[#2ea043] pulse-dot"></span>
+          <span class="text-[#7ee787]">LIVE</span>
+        </div>
+        <span class="text-[#8b949e]">|</span>
+        <button onclick="expandAll()" class="text-[#8b949e] hover:text-white text-[11px]">[Expand All]</button>
+        <button onclick="collapseAll()" class="text-[#8b949e] hover:text-white text-[11px]">[Collapse All]</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body (Maximum Width of the Viewport) -->
+  <main id="servers-container" class="flex-1 w-full p-2 sm:p-4 space-y-4">
+{{ template "servers_partial.html" . }}
+  </main>
+
+  <!-- Interactive Slide-over / Modal Log Streamer (HTOP Console Style) -->
+  <div id="log-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex justify-end transition-opacity">
+    <div class="w-full max-w-5xl bg-[#0c1017] border-l border-[#30363d] flex flex-col h-full shadow-2xl">
+      <!-- Modal Header -->
+      <div class="p-3 border-b border-[#30363d] flex items-center justify-between bg-[#161b22]">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#2ea043] pulse-dot"></span>
+            <h3 id="log-title" class="font-bold text-white text-xs font-mono">CONTAINER LOGS</h3>
+          </div>
+          <p id="log-subtitle" class="text-[10px] text-[#8b949e] mt-0.5 font-mono">Connecting...</p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 text-[11px] text-[#c9d1d9] cursor-pointer bg-[#21262d] px-2 py-1 rounded border border-[#30363d] select-none">
+            <input type="checkbox" id="autoscroll-chk" checked class="rounded border-[#30363d] text-[#388bfd] focus:ring-0">
+            <span>Auto-scroll</span>
+          </label>
+
+          <button onclick="clearLogs()" class="p-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-[11px] px-2">
+            Clear
+          </button>
+
+          <button onclick="closeLogViewer()" class="p-1 rounded bg-[#21262d] hover:bg-[#da3633] text-[#c9d1d9] hover:text-white transition-colors text-[11px] px-2">
+            [ESC Close]
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="p-2 bg-[#0d1117] border-b border-[#30363d] flex items-center gap-2">
+        <span class="text-[#58a6ff] text-xs font-mono ml-2">&gt; filter:</span>
+        <input type="text" id="log-filter" placeholder="type to filter log stream..." oninput="filterLogs()" class="bg-transparent border-0 focus:ring-0 text-xs w-full text-white placeholder-[#6e7681] font-mono">
+      </div>
+
+      <!-- Log Output Box -->
+      <div id="log-container" class="flex-1 p-3 overflow-y-auto bg-[#0c1017] font-mono text-[11px] text-[#c9d1d9] leading-relaxed select-text space-y-0.5">
+        <div class="text-[#8b949e] italic">Initiating stream...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeEventSource = null;
+    let rawLogLines = [];
+
+    function toggleService(serviceId) {
+      const rows = document.querySelectorAll(`[data-service="${serviceId}"]`);
+      const icon = document.getElementById(`icon-${serviceId}`);
+      if (rows.length === 0) return;
+      const willExpand = rows[0].classList.contains('hidden');
+
+      rows.forEach(r => {
+        if (willExpand) {
+          r.classList.remove('hidden');
+        } else {
+          r.classList.add('hidden');
+        }
+      });
+
+      if (icon) {
+        icon.innerText = willExpand ? '::' : '+ ';
+        icon.className = willExpand 
+          ? 'text-[#58a6ff] hover:text-white transition-transform duration-150 inline-block font-bold text-xs' 
+          : 'text-[#d29922] hover:text-white transition-transform duration-150 inline-block font-bold text-xs';
+      }
+    }
+
+    function expandAll() {
+      document.querySelectorAll('[data-service]').forEach(r => r.classList.remove('hidden'));
+      document.querySelectorAll('[id^="icon-"]').forEach(i => {
+        i.innerText = '::';
+        i.className = 'text-[#58a6ff] hover:text-white transition-transform duration-150 inline-block font-bold text-xs';
+      });
+    }
+
+    function collapseAll() {
+      document.querySelectorAll('[data-service]').forEach(r => r.classList.add('hidden'));
+      document.querySelectorAll('[id^="icon-"]').forEach(i => {
+        i.innerText = '+ ';
+        i.className = 'text-[#d29922] hover:text-white transition-transform duration-150 inline-block font-bold text-xs';
+      });
+    }
+
+    function openLogViewer(server, container, label) {
+      const modal = document.getElementById('log-modal');
+      const title = document.getElementById('log-title');
+      const subtitle = document.getElementById('log-subtitle');
+      const containerBox = document.getElementById('log-container');
+      const filterInput = document.getElementById('log-filter');
+
+      title.innerText = `LOGS: ${label}`;
+      subtitle.innerText = `${server} -> ${container}`;
+      filterInput.value = '';
+      rawLogLines = [];
+      containerBox.innerHTML = '<div class="text-[#58a6ff] italic">Connecting to Docker log stream...</div>';
+      modal.classList.remove('hidden');
+
+      if (activeEventSource) {
+        activeEventSource.close();
+      }
+
+      const url = `/logs/stream?server=${encodeURIComponent(server)}&container=${encodeURIComponent(container)}&tail=150&follow=true`;
+      activeEventSource = new EventSource(url);
+
+      activeEventSource.onmessage = function(e) {
+        try {
+          const line = JSON.parse(e.data);
+          rawLogLines.push(line);
+          appendLogLine(line);
+        } catch(err) {
+          rawLogLines.push(e.data);
+          appendLogLine(e.data);
+        }
+      };
+
+      activeEventSource.onerror = function() {
+        subtitle.innerText = `${server} -> ${container} [stream closed]`;
+      };
+    }
+
+    function appendLogLine(line) {
+      const filter = document.getElementById('log-filter').value.toLowerCase();
+      if (filter && !line.toLowerCase().includes(filter)) {
+        return;
+      }
+
+      const containerBox = document.getElementById('log-container');
+      const div = document.createElement('div');
+      div.className = "whitespace-pre-wrap break-all hover:bg-[#161b22] px-1 py-0.2 rounded font-mono";
+
+      if (line.includes("Completed 200") || line.includes("level\":\"INFO")) {
+        div.className += " text-[#c9d1d9]";
+      } else if (line.includes("Completed 500") || line.includes("ERROR") || line.includes("Error") || line.includes("fatal")) {
+        div.className += " text-[#f85149] bg-[#da3633]/10";
+      } else if (line.includes("WARN") || line.includes("warning")) {
+        div.className += " text-[#d29922]";
+      }
+
+      div.textContent = line;
+      containerBox.appendChild(div);
+
+      const autoscroll = document.getElementById('autoscroll-chk').checked;
+      if (autoscroll) {
+        containerBox.scrollTop = containerBox.scrollHeight;
+      }
+    }
+
+    function filterLogs() {
+      const containerBox = document.getElementById('log-container');
+      containerBox.innerHTML = '';
+      for (const line of rawLogLines) {
+        appendLogLine(line);
+      }
+    }
+
+    function clearLogs() {
+      rawLogLines = [];
+      document.getElementById('log-container').innerHTML = '';
+    }
+
+    function closeLogViewer() {
+      const modal = document.getElementById('log-modal');
+      modal.classList.add('hidden');
+      if (activeEventSource) {
+        activeEventSource.close();
+        activeEventSource = null;
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeLogViewer();
+      }
+    });
+
+    // Auto-refresh telemetry in the background at least once every 4 seconds
+    async function refreshServersData() {
+      try {
+        const res = await fetch('/partial/servers');
+        if (res.ok) {
+          const html = await res.text();
+          // Preserve expanded state across polling updates (default is collapsed)
+          const expanded = new Set();
+          document.querySelectorAll('[data-service]').forEach(el => {
+            if (!el.classList.contains('hidden')) {
+              const svc = el.getAttribute('data-service');
+              if (svc) expanded.add(svc);
+            }
+          });
+
+          const container = document.getElementById('servers-container');
+          container.innerHTML = html;
+
+          // Re-apply any user expanded rows
+          expanded.forEach(id => {
+            document.querySelectorAll(`[data-service="${id}"]`).forEach(el => el.classList.remove('hidden'));
+            const icon = document.getElementById(`icon-${id}`);
+            if (icon) {
+              icon.innerText = '::';
+              icon.className = 'text-[#58a6ff] hover:text-white transition-transform duration-150 inline-block font-bold text-xs';
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Auto-refresh error:', err);
+      }
+    }
+
+    // Poll every 4 seconds (less than 5s requirement)
+    setInterval(refreshServersData, 4000);
+
+    const clusterEvents = new EventSource('/events');
+    clusterEvents.addEventListener('update', function(e) {
+      refreshServersData();
+    });
+  </script>
+</body>
+</html>

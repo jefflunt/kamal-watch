@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> Building kamal-watch binary..."
+mkdir -p bin
+go build -ldflags="-s -w" -o bin/kamal-watch ./cmd/kamal-watch
+echo "==> Built bin/kamal-watch successfully!"

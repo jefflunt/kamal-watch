@@ -1,0 +1,10 @@
+.git
+bin/
+kamal-watch.yml
+.kamal/
+config/deploy*.yml
+config/tls/
+*.pem
+*.key
+.env*
+.DS_Store

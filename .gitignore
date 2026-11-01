@@ -1,0 +1,12 @@
+bin/
+/kamal-watch
+.DS_Store
+
+# Local runtime & Kamal deployment configs, secrets, and TLS keys
+kamal-watch.yml
+.kamal/
+config/deploy*.yml
+config/tls/
+*.pem
+*.key
+.env*

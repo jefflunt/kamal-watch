@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0c1017] text-[#c9d1d9]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KAMAL WATCH :: {{ .App.Name }}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  </style>
+</head>
+<body class="min-h-full flex flex-col bg-[#0c1017] text-[#c9d1d9] text-xs antialiased selection:bg-[#388bfd]/30 selection:text-white">
+
+  <!-- Full-Width Terminal Header -->
+  <header class="border-b border-[#30363d] bg-[#161b22]/90 sticky top-0 z-40 backdrop-blur w-full">
+    <div class="w-full px-3 sm:px-4 py-2 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <a href="/" class="text-[#58a6ff] hover:underline font-bold text-xs flex items-center gap-1.5 group">
+          <svg class="w-4 h-4 transition-transform duration-150 group-hover:scale-105 shrink-0" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+            <path d="M11 8H7V24H11" stroke="#58a6ff" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"/>
+            <path d="M21 8H25V24H21" stroke="#58a6ff" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"/>
+            <line x1="10" y1="16" x2="13.5" y2="16" stroke="#2ea043" stroke-width="2"/>
+            <line x1="18.5" y1="16" x2="22" y2="16" stroke="#2ea043" stroke-width="2"/>
+            <circle cx="16" cy="16" r="2.75" fill="#7ee787"/>
+          </svg>
+          <span>&lt; [DASHBOARD]</span>
+        </a>
+        <span class="text-[#30363d]">/</span>
+        <span class="text-[#8b949e] font-mono">{{ .ServerName }}</span>
+        <span class="text-[#30363d]">/</span>
+        <span class="text-white font-bold font-mono">{{ .App.Name }}</span>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <span class="text-[#8b949e]">Status: <span class="text-[#7ee787]">ACTIVE</span></span>
+        <span class="text-[#30363d]">|</span>
+        <a href="/" class="text-[#8b949e] hover:text-white">[ESC Back]</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full p-2 sm:p-4 space-y-4">
+    <!-- App Meta Summary Banner -->
+    <div class="border border-[#30363d] bg-[#161b22] rounded-md p-3">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-white font-bold text-sm">{{ .App.Name }}</span>
+            {{ if .App.ProxyRoute }}
+              <span class="text-[#7ee787] text-[10px] bg-[#238636]/20 px-1.5 py-0.2 rounded border border-[#238636]">
+                TLS: {{ .App.ProxyRoute.TLS }}
+              </span>
+            {{ end }}
+          </div>
+          {{ if .App.ProxyRoute }}
+            <div class="text-[#58a6ff] text-[11px] mt-1">
+              Virtual Hosts: {{ .App.ProxyRoute.Host }} &rarr; Target: {{ .App.ProxyRoute.Target }}
+            </div>
+          {{ end }}
+          <div class="flex items-center gap-3 text-xs font-mono mt-2">
+            <span class="text-[#8b949e]">Total CPU: <span class="text-[#7ee787] font-bold">{{ printf "%.2f" .App.Aggregates.TotalCPU }}%</span></span>
+            <span class="text-[#30363d]">|</span>
+            <span class="text-[#8b949e]">Total RAM: <span class="text-[#bc8cff] font-bold">{{ if .App.Aggregates.TotalMemUsage }}{{ .App.Aggregates.TotalMemUsage }}{{ else }}-{{ end }} ({{ printf "%.2f" .App.Aggregates.TotalMemPerc }}%)</span></span>
+          </div>
+        </div>
+
+        <div class="text-right text-[11px]">
+          <div>Active Version: <span class="text-white font-bold bg-[#21262d] px-1.5 py-0.5 rounded border border-[#30363d]">{{ if .App.ActiveVersion }}{{ .App.ActiveVersion }}{{ else }}latest{{ end }}</span></div>
+          <div class="text-[#8b949e] mt-1">
+            Last deployed by <span class="text-[#c9d1d9]">{{ .App.LastDeployedBy }}</span> {{ timeAgo .App.LastDeployedAt }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Containers by Role -->
+    <div class="border border-[#30363d] bg-[#161b22] rounded-md overflow-hidden">
+      <div class="bg-[#1f242c] px-3 py-1.5 border-b border-[#30363d] text-white font-bold text-xs">
+        ACTIVE CONTAINERS & ROLES
+      </div>
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left font-mono text-xs border-collapse">
+          <thead>
+            <tr class="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d] text-[11px]">
+              <th class="py-1 px-3">NAME</th>
+              <th class="py-1 px-3">ROLE</th>
+              <th class="py-1 px-3">STATUS</th>
+              <th class="py-1 px-3 text-right">CPU%</th>
+              <th class="py-1 px-3 text-right">MEM USAGE</th>
+              <th class="py-1 px-3">IMAGE</th>
+              <th class="py-1 px-3 text-center">ACTION</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#21262d] text-[11px]">
+            <!-- Web Instances -->
+            {{ range .App.WebInstances }}
+            <tr class="hover:bg-[#1f242c]">
+              <td class="py-1.5 px-3 text-[#7ee787] font-semibold">web: {{ .Name }}</td>
+              <td class="py-1.5 px-3 text-[#58a6ff]">web</td>
+              <td class="py-1.5 px-3 text-[#7ee787]">{{ .Status }}</td>
+              <td class="py-1.5 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1.5 px-3 text-right text-[#bc8cff]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1.5 px-3 text-[#8b949e]">{{ .Image }}</td>
+              <td class="py-1.5 px-3 text-center">
+                <button onclick="openLogViewer('{{ $.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px]">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            <!-- Job Instances -->
+            {{ range .App.JobInstances }}
+            <tr class="hover:bg-[#1f242c]">
+              <td class="py-1.5 px-3 text-[#d29922] font-semibold">job: {{ .Name }}</td>
+              <td class="py-1.5 px-3 text-[#d29922]">job/worker</td>
+              <td class="py-1.5 px-3 text-[#7ee787]">{{ .Status }}</td>
+              <td class="py-1.5 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1.5 px-3 text-right text-[#bc8cff]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1.5 px-3 text-[#8b949e]">{{ .Image }}</td>
+              <td class="py-1.5 px-3 text-center">
+                <button onclick="openLogViewer('{{ $.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px]">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+
+            <!-- Accessories -->
+            {{ range .App.Accessories }}
+            <tr class="hover:bg-[#1f242c]">
+              <td class="py-1.5 px-3 text-[#bc8cff] font-semibold">accessory: {{ .Name }}</td>
+              <td class="py-1.5 px-3 text-[#bc8cff]">accessory</td>
+              <td class="py-1.5 px-3 text-[#7ee787]">{{ .Status }}</td>
+              <td class="py-1.5 px-3 text-right text-[#7ee787]">{{ printf "%.2f" .Stats.CPUPerc }}%</td>
+              <td class="py-1.5 px-3 text-right text-[#bc8cff]">{{ if .Stats.MemUsage }}{{ .Stats.MemUsage }}{{ else }}-{{ end }}</td>
+              <td class="py-1.5 px-3 text-[#8b949e]">{{ .Image }}</td>
+              <td class="py-1.5 px-3 text-center">
+                <button onclick="openLogViewer('{{ $.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#388bfd] text-[#c9d1d9] hover:text-white px-2 py-0.5 rounded text-[10px]">
+                  LOGS
+                </button>
+              </td>
+            </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Deployment Audit Log History Table -->
+    <div class="border border-[#30363d] bg-[#161b22] rounded-md overflow-hidden">
+      <div class="bg-[#1f242c] px-3 py-1.5 border-b border-[#30363d] text-white font-bold text-xs">
+        KAMAL DEPLOYMENT AUDIT LOG
+      </div>
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left font-mono text-xs border-collapse">
+          <thead>
+            <tr class="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d] text-[11px]">
+              <th class="py-1 px-3">TIMESTAMP</th>
+              <th class="py-1 px-3">DEPLOYER</th>
+              <th class="py-1 px-3">ACTION</th>
+              <th class="py-1 px-3 text-right">VERSION TAG</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#21262d] text-[11px]">
+            {{ range .App.DeployHistory }}
+            <tr class="hover:bg-[#1f242c]">
+              <td class="py-1 px-3 text-[#8b949e] whitespace-nowrap">{{ .Timestamp.Format "2006-01-02 15:04:05 MST" }}</td>
+              <td class="py-1 px-3 text-[#58a6ff] whitespace-nowrap">{{ .User }}</td>
+              <td class="py-1 px-3 text-[#c9d1d9]">{{ .Action }}</td>
+              <td class="py-1 px-3 text-right text-[#d29922]">
+                {{ if .Version }}<span class="bg-[#21262d] px-1.5 py-0.2 rounded border border-[#30363d]">{{ shortHash .Version }}</span>{{ else }}-{{ end }}
+              </td>
+            </tr>
+            {{ else }}
+            <tr>
+              <td colspan="4" class="py-4 text-center text-[#8b949e]">No deployment audit logs found.</td>
+            </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Previous / Exited Containers -->
+    {{ if .App.OldInstances }}
+    <div class="border border-[#30363d] bg-[#0d1117] rounded-md overflow-hidden">
+      <div class="bg-[#161b22] px-3 py-1 border-b border-[#30363d] text-[#8b949e] text-[11px]">
+        PREVIOUS / EXITED CONTAINERS ({{ len .App.OldInstances }})
+      </div>
+      <div class="p-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+        {{ range .App.OldInstances }}
+        <div class="p-2 rounded bg-[#161b22]/50 border border-[#21262d] flex items-center justify-between text-[#8b949e]">
+          <div>
+            <div class="text-[#c9d1d9]">{{ .Name }}</div>
+            <div class="text-[10px] text-[#6e7681] mt-0.5">{{ .Status }}</div>
+          </div>
+          <button onclick="openLogViewer('{{ $.ServerName }}', '{{ .Name }}', '{{ .Name }}')" class="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] px-2 py-0.5 rounded text-[10px]">
+            LOGS
+          </button>
+        </div>
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+  </main>
+
+  <!-- Interactive Slide-over / Modal Log Streamer (HTOP Console Style) -->
+  <div id="log-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex justify-end transition-opacity">
+    <div class="w-full max-w-5xl bg-[#0c1017] border-l border-[#30363d] flex flex-col h-full shadow-2xl">
+      <!-- Modal Header -->
+      <div class="p-3 border-b border-[#30363d] flex items-center justify-between bg-[#161b22]">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#2ea043] animate-pulse"></span>
+            <h3 id="log-title" class="font-bold text-white text-xs font-mono">CONTAINER LOGS</h3>
+          </div>
+          <p id="log-subtitle" class="text-[10px] text-[#8b949e] mt-0.5 font-mono">Connecting...</p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 text-[11px] text-[#c9d1d9] cursor-pointer bg-[#21262d] px-2 py-1 rounded border border-[#30363d] select-none">
+            <input type="checkbox" id="autoscroll-chk" checked class="rounded border-[#30363d] text-[#388bfd] focus:ring-0">
+            <span>Auto-scroll</span>
+          </label>
+
+          <button onclick="clearLogs()" class="p-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-[11px] px-2">
+            Clear
+          </button>
+
+          <button onclick="closeLogViewer()" class="p-1 rounded bg-[#21262d] hover:bg-[#da3633] text-[#c9d1d9] hover:text-white transition-colors text-[11px] px-2">
+            [ESC Close]
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="p-2 bg-[#0d1117] border-b border-[#30363d] flex items-center gap-2">
+        <span class="text-[#58a6ff] text-xs font-mono ml-2">&gt; filter:</span>
+        <input type="text" id="log-filter" placeholder="type to filter log stream..." oninput="filterLogs()" class="bg-transparent border-0 focus:ring-0 text-xs w-full text-white placeholder-[#6e7681] font-mono">
+      </div>
+
+      <!-- Log Output Box -->
+      <div id="log-container" class="flex-1 p-3 overflow-y-auto bg-[#0c1017] font-mono text-[11px] text-[#c9d1d9] leading-relaxed select-text space-y-0.5">
+        <div class="text-[#8b949e] italic">Initiating stream...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeEventSource = null;
+    let rawLogLines = [];
+
+    function openLogViewer(server, container, label) {
+      const modal = document.getElementById('log-modal');
+      const title = document.getElementById('log-title');
+      const subtitle = document.getElementById('log-subtitle');
+      const containerBox = document.getElementById('log-container');
+      const filterInput = document.getElementById('log-filter');
+
+      title.innerText = `LOGS: ${label}`;
+      subtitle.innerText = `${server} -> ${container}`;
+      filterInput.value = '';
+      rawLogLines = [];
+      containerBox.innerHTML = '<div class="text-[#58a6ff] italic">Connecting to Docker log stream...</div>';
+      modal.classList.remove('hidden');
+
+      if (activeEventSource) {
+        activeEventSource.close();
+      }
+
+      const url = `/logs/stream?server=${encodeURIComponent(server)}&container=${encodeURIComponent(container)}&tail=150&follow=true`;
+      activeEventSource = new EventSource(url);
+
+      activeEventSource.onmessage = function(e) {
+        try {
+          const line = JSON.parse(e.data);
+          rawLogLines.push(line);
+          appendLogLine(line);
+        } catch(err) {
+          rawLogLines.push(e.data);
+          appendLogLine(e.data);
+        }
+      };
+
+      activeEventSource.onerror = function() {
+        subtitle.innerText = `${server} -> ${container} [stream closed]`;
+      };
+    }
+
+    function appendLogLine(line) {
+      const filter = document.getElementById('log-filter').value.toLowerCase();
+      if (filter && !line.toLowerCase().includes(filter)) {
+        return;
+      }
+
+      const containerBox = document.getElementById('log-container');
+      const div = document.createElement('div');
+      div.className = "whitespace-pre-wrap break-all hover:bg-[#161b22] px-1 py-0.2 rounded font-mono";
+
+      if (line.includes("Completed 200") || line.includes("level\":\"INFO")) {
+        div.className += " text-[#c9d1d9]";
+      } else if (line.includes("Completed 500") || line.includes("ERROR") || line.includes("Error") || line.includes("fatal")) {
+        div.className += " text-[#f85149] bg-[#da3633]/10";
+      } else if (line.includes("WARN") || line.includes("warning")) {
+        div.className += " text-[#d29922]";
+      }
+
+      div.textContent = line;
+      containerBox.appendChild(div);
+
+      const autoscroll = document.getElementById('autoscroll-chk').checked;
+      if (autoscroll) {
+        containerBox.scrollTop = containerBox.scrollHeight;
+      }
+    }
+
+    function filterLogs() {
+      const containerBox = document.getElementById('log-container');
+      containerBox.innerHTML = '';
+      for (const line of rawLogLines) {
+        appendLogLine(line);
+      }
+    }
+
+    function clearLogs() {
+      rawLogLines = [];
+      document.getElementById('log-container').innerHTML = '';
+    }
+
+    function closeLogViewer() {
+      const modal = document.getElementById('log-modal');
+      modal.classList.add('hidden');
+      if (activeEventSource) {
+        activeEventSource.close();
+        activeEventSource = null;
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeLogViewer();
+      }
+    });
+  </script>
+</body>
+</html>
