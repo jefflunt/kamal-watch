@@ -35,6 +35,7 @@ func main() {
 	log.Printf("Configured %d servers to monitor", len(cfg.Servers))
 
 	pool := remote.NewSSHPool(cfg.Servers)
+	defer pool.Close()
 	mon := monitor.NewMonitor(cfg, pool)
 
 	ctx, cancel := context.WithCancel(context.Background())
