@@ -19,7 +19,7 @@
    - Computes aggregated CPU% and MEM% across logical service groups.
 
 3. **Web Server & UI (`pkg/web/server.go` & `pkg/web/templates/`)**:
-   - Monospaced, high-density terminal interface inspired by `htop`.
+   - Monospaced, high-density terminal interface inspired by `htop`, displaying the embedded release version (`version.go` -> `VERSION`) in the top navigation bar.
    - Live telemetry updates without full page reloads via `/partial/servers` DOM swapping.
    - Preserves user interaction state (collapsed/expanded services) across periodic refreshes.
    - Slide-over terminal modal with SSE log streaming, log filtering, and auto-scroll.

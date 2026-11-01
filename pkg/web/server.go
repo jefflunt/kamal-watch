@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jefflunt/kamal-watch"
 	"github.com/jefflunt/kamal-watch/config"
 	"github.com/jefflunt/kamal-watch/pkg/models"
 	"github.com/jefflunt/kamal-watch/pkg/monitor"
@@ -112,6 +113,7 @@ func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
 type DashboardData struct {
 	Servers []*models.ServerInventory
 	Now     time.Time
+	Version string
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +125,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data := DashboardData{
 		Servers: s.monitor.GetAllInventories(),
 		Now:     time.Now(),
+		Version: kamalwatch.Version(),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -135,6 +138,7 @@ func (s *Server) handleServersPartial(w http.ResponseWriter, r *http.Request) {
 	data := DashboardData{
 		Servers: s.monitor.GetAllInventories(),
 		Now:     time.Now(),
+		Version: kamalwatch.Version(),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

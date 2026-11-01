@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-11-01
+
+### Added
+- Embedded demo video (`https://media.jefflunt.com/code/kamal-watch/kamal-watch-demo.mp4` with animated GIF fallback for GitHub Markdown sanitization) at the top of `README.md`.
+- Compile-time version embedding (`version.go` via `//go:embed VERSION`) exposed to web templates.
+
+### Changed
+- Replaced the `"LIVE"` label in the dashboard top navigation bar with the running application version (`v0.2.3`).
+
 ## [0.2.2] - 2026-11-01
 
 ### Added

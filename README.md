@@ -1,5 +1,11 @@
 # Kamal Watch
 
+<video src="https://media.jefflunt.com/code/kamal-watch/kamal-watch-demo.mp4" controls autoplay loop muted playsinline width="100%">
+  <a href="https://media.jefflunt.com/code/kamal-watch/kamal-watch-demo.mp4">
+    <img src="https://media.jefflunt.com/code/kamal-watch/kamal-watch-demo.gif" alt="Kamal Watch live demo — click to open full-resolution MP4" width="100%">
+  </a>
+</video>
+
 [Kamal](https://kamal-deploy.org/) strips the bloat out of deploying containers to bare metal and VPS hosts. Day-two visibility, however, still means juggling SSH tabs to run `docker ps`, `docker stats`, and `docker logs -f` box by box—or maintaining a Prometheus and Grafana stack heavier than the apps it watches. **Kamal Watch** fixes that with a single Go binary and zero host agents. Give it SSH key access to your Kamal servers, and it discovers every service (`web`, `job` workers, and accessories like Postgres or Redis), maps live `kamal-proxy` routes and TLS status, reads deployment audit logs, and streams container logs in real time.
 
 Inspired by `htop`, the interface favors dense, monospaced terminal telemetry over sprawling charts. Each server card displays live CPU, core count, memory, swap, and root disk gauges above collapsible service rows that update automatically every few seconds. Nothing extra gets installed on your application servers: if Kamal can SSH into a host, Kamal Watch can observe it immediately.

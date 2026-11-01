@@ -6,8 +6,38 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jefflunt/kamal-watch"
 	"github.com/jefflunt/kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/pkg/monitor"
 )
+
+func TestDashboardShowsVersionInsteadOfLive(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	mon := monitor.NewMonitor(cfg, nil)
+
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	srv.Routes().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for /, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	wantVersion := "v" + kamalwatch.Version()
+	if !strings.Contains(body, wantVersion) {
+		t.Errorf("expected dashboard header to contain %q", wantVersion)
+	}
+	if strings.Contains(body, ">LIVE<") {
+		t.Errorf("expected LIVE label to be removed from dashboard header")
+	}
+}
 
 func TestFaviconEndpoints(t *testing.T) {
 	srv, err := NewServer(config.DefaultConfig(), nil, nil)
