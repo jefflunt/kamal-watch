@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-02
+
+### Added
+- Zero-overhead detection of host reboot-required state (`/run/reboot-required`, `/run/reboot-required.pkgs`, `needs-restarting -r`) and cached pending OS/security updates (`/var/lib/update-notifier/updates-available`, `/var/run/motd.dynamic`) during the SSH poll cycle (#11, #12).
+- Host maintenance badges in the dashboard and server cards with interactive tooltips detailing reboot-triggering packages and update summaries (#11, #12).
+- Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) running in a `golang:alpine` container triggered on version tag pushes (`v*`) and manual dispatch to test and compile the project (#13, #14).
+
 ## [0.4.0] - 2026-11-02
 
 ### Security
