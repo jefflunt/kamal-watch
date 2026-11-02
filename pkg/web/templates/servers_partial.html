@@ -9,6 +9,12 @@
             <span class="text-[#8b949e]">({{ $srv.Host }})</span>
             {{ if $srv.Online }}
               <span class="bg-[#238636]/20 border border-[#238636] text-[#7ee787] px-1.5 py-0.2 rounded text-[10px]">ONLINE</span>
+              {{ if $srv.Health.RebootRequired }}
+                <span class="bg-[#da3633]/20 border border-[#da3633] text-[#f85149] px-1.5 py-0.2 rounded text-[10px] font-semibold" {{ if $srv.Health.RebootRequiredPkgs }}title="Packages requiring reboot: {{ join $srv.Health.RebootRequiredPkgs ", " }}"{{ end }}>⟳ Reboot Required</span>
+              {{ end }}
+              {{ if or (gt $srv.Health.UpdatesAvailable 0) (gt $srv.Health.SecurityUpdates 0) }}
+                <span class="bg-[#d29922]/20 border border-[#d29922] text-[#d29922] px-1.5 py-0.2 rounded text-[10px] font-semibold" {{ if $srv.Health.UpdatesSummary }}title="{{ $srv.Health.UpdatesSummary }}"{{ end }}>Updates: {{ $srv.Health.UpdatesAvailable }}{{ if gt $srv.Health.SecurityUpdates 0 }} ({{ $srv.Health.SecurityUpdates }} sec){{ end }}</span>
+              {{ end }}
             {{ else }}
               <span class="bg-[#da3633]/20 border border-[#da3633] text-[#f85149] px-1.5 py-0.2 rounded text-[10px]">OFFLINE: {{ $srv.Error }}</span>
             {{ end }}

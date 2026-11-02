@@ -10,6 +10,7 @@ import (
 
 	"github.com/jefflunt/kamal-watch"
 	"github.com/jefflunt/kamal-watch/config"
+	"github.com/jefflunt/kamal-watch/pkg/models"
 	"github.com/jefflunt/kamal-watch/pkg/monitor"
 )
 
@@ -212,5 +213,58 @@ func TestHandleLogStream_PerServerConcurrencyCap(t *testing.T) {
 	routes.ServeHTTP(wAfter, reqAfter)
 	if wAfter.Code != http.StatusOK {
 		t.Errorf("expected 200 OK after semaphore slot released, got %d", wAfter.Code)
+	}
+}
+
+func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
+	srv, err := NewServer(config.DefaultConfig(), nil, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	inv := &models.ServerInventory{
+		ServerName: "prod-node-01",
+		Host:       "10.0.0.10",
+		Online:     true,
+		Health: models.HostHealth{
+			Uptime:             "up 14 days",
+			LoadAvg:            "0.12, 0.08, 0.05",
+			RebootRequired:     true,
+			RebootRequiredPkgs: []string{"linux-image-generic", "libc6"},
+			UpdatesAvailable:   5,
+			SecurityUpdates:    1,
+			UpdatesSummary:     "5 updates can be applied immediately. 1 of these updates is a standard security update.",
+		},
+		Apps: make(map[string]*models.KamalApp),
+	}
+
+	var partialBuf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&partialBuf, "servers_partial.html", DashboardData{
+		Servers: []*models.ServerInventory{inv},
+		Version: "0.3.0",
+	}); err != nil {
+		t.Fatalf("execute servers_partial.html: %v", err)
+	}
+	partialHTML := partialBuf.String()
+	if !strings.Contains(partialHTML, "⟳ Reboot Required") {
+		t.Errorf("expected servers_partial.html to contain '⟳ Reboot Required', got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "linux-image-generic, libc6") {
+		t.Errorf("expected servers_partial.html tooltip to list reboot packages, got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "Updates: 5 (1 sec)") {
+		t.Errorf("expected servers_partial.html to contain 'Updates: 5 (1 sec)', got: %s", partialHTML)
+	}
+
+	var serverBuf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&serverBuf, "server.html", inv); err != nil {
+		t.Fatalf("execute server.html: %v", err)
+	}
+	serverHTML := serverBuf.String()
+	if !strings.Contains(serverHTML, "⟳ Reboot Required") {
+		t.Errorf("expected server.html to contain '⟳ Reboot Required', got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, "Updates: 5 (1 sec)") {
+		t.Errorf("expected server.html to contain 'Updates: 5 (1 sec)', got: %s", serverHTML)
 	}
 }
