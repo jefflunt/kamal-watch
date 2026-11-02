@@ -27,6 +27,9 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
+//go:embed assets/styles.css
+var stylesCSS []byte
+
 type Server struct {
 	cfg                  *config.Config
 	monitor              *monitor.Monitor
@@ -98,6 +101,7 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /up", s.handleUp)
+	mux.HandleFunc("GET /assets/styles.css", s.handleStylesCSS)
 	mux.HandleFunc("GET /favicon.svg", s.handleFavicon)
 	mux.HandleFunc("GET /favicon.ico", s.handleFavicon)
 	mux.HandleFunc("GET /", s.handleIndex)
@@ -108,7 +112,22 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /events", s.handleSSEUpdates)
 	mux.HandleFunc("GET /logs/stream", s.handleLogStream)
 
-	return s.hostValidationMiddleware(s.authMiddleware(mux))
+	return s.securityHeadersMiddleware(s.hostValidationMiddleware(s.authMiddleware(mux)))
+}
+
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) handleStylesCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(stylesCSS)
 }
 
 func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {

@@ -305,3 +305,53 @@ func TestServer_HostHeaderValidation(t *testing.T) {
 		t.Errorf("expected 200 OK for allowed host watch.internal, got %d", wCustom.Code)
 	}
 }
+
+func TestEmbeddedStylesAndSecurityHeaders(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// 1. Verify /assets/styles.css serves embedded CSS
+	reqCSS := httptest.NewRequest(http.MethodGet, "/assets/styles.css", nil)
+	wCSS := httptest.NewRecorder()
+	routes.ServeHTTP(wCSS, reqCSS)
+	if wCSS.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /assets/styles.css, got %d", wCSS.Code)
+	}
+	if ct := wCSS.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/css") {
+		t.Errorf("expected text/css Content-Type, got %q", ct)
+	}
+	if !strings.Contains(wCSS.Body.String(), ".meter-bar") {
+		t.Errorf("expected /assets/styles.css to contain compiled utility and meter rules")
+	}
+
+	// 2. Verify dashboard HTML no longer references cdn.tailwindcss.com and includes security headers
+	reqIdx := httptest.NewRequest(http.MethodGet, "/", nil)
+	wIdx := httptest.NewRecorder()
+	routes.ServeHTTP(wIdx, reqIdx)
+	if wIdx.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /, got %d", wIdx.Code)
+	}
+	body := wIdx.Body.String()
+	if strings.Contains(body, "cdn.tailwindcss.com") {
+		t.Errorf("expected cdn.tailwindcss.com script to be removed from index.html")
+	}
+	if !strings.Contains(body, `/assets/styles.css`) {
+		t.Errorf("expected index.html to link /assets/styles.css")
+	}
+
+	if got := wIdx.Header().Get("Referrer-Policy"); got != "no-referrer" {
+		t.Errorf("expected Referrer-Policy: no-referrer, got %q", got)
+	}
+	if got := wIdx.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("expected X-Content-Type-Options: nosniff, got %q", got)
+	}
+	if got := wIdx.Header().Get("X-Frame-Options"); got != "DENY" {
+		t.Errorf("expected X-Frame-Options: DENY, got %q", got)
+	}
+}
