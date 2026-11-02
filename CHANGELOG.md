@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-02
+
+### Added
+- Configurable per-server concurrency cap for `/logs/stream` SSH sessions (`max_concurrent_log_streams`, default `6`), returning `429 Too Many Requests` when saturated (#5, #8).
+- HTTP server `ReadHeaderTimeout` (`10s`) and `IdleTimeout` (`120s`) to guard against slowloris header stalls while preserving long-lived SSE streams (#5, #8).
+
 ## [0.2.6] - 2026-11-02
 
 ### Changed

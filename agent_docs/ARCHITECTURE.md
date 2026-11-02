@@ -23,5 +23,5 @@
    - Monospaced, high-density terminal interface inspired by `htop`, displaying the embedded release version (`version.go` -> `VERSION`) in the top navigation bar.
    - Live telemetry updates without full page reloads via `/partial/servers` DOM swapping.
    - Preserves user interaction state (collapsed/expanded services) across periodic refreshes.
-   - Slide-over terminal modal with SSE log streaming, log filtering, and auto-scroll.
+   - Slide-over terminal modal with SSE log streaming, log filtering, and auto-scroll, protected by a per-server concurrency cap (`max_concurrent_log_streams`, default `6`, returning HTTP `429` when saturated) and HTTP `ReadHeaderTimeout` / `IdleTimeout` limits.
    - Concept 2 ("The Phosphor Viewfinder `[ • ]`") branding icon and vector SVG favicon.
