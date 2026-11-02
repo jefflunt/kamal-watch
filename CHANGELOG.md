@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-02
+
+### Security
+- Replaced the runtime `https://cdn.tailwindcss.com` external script with a compiled, embedded stylesheet (`GET /assets/styles.css`) for full offline/air-gapped operation and zero third-party script dependencies (#4, #10).
+- Added security response headers (`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`) across all HTTP responses (#4, #10).
+
 ## [0.3.1] - 2026-11-02
 
 ### Security
