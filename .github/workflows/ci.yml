@@ -45,9 +45,6 @@ jobs:
     env:
       CGO_ENABLED: 0
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        shell: bash
     steps:
       - name: Install release tools
         run: |
