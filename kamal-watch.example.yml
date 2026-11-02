@@ -1,6 +1,8 @@
 # Bind to 127.0.0.1 when running locally; use ":8080" inside Docker/Kamal on a private network
 listen_addr: "127.0.0.1:8080"
 poll_interval: 4s
+# Path to SSH known_hosts file (defaults to ~/.ssh/known_hosts)
+# known_hosts_path: ~/.ssh/known_hosts
 
 servers:
   - name: app-server-01
@@ -8,3 +10,5 @@ servers:
     port: 22
     user: deploy
     key_path: ~/.ssh/id_ed25519
+    # known_hosts_path: ~/.ssh/known_hosts
+    # insecure_ignore_host_key: false

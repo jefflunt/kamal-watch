@@ -11,17 +11,21 @@ import (
 )
 
 type ServerConfig struct {
-	Name     string `yaml:"name"`
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	User     string `yaml:"user"`
-	KeyPath  string `yaml:"key_path"`
+	Name                  string `yaml:"name"`
+	Host                  string `yaml:"host"`
+	Port                  int    `yaml:"port"`
+	User                  string `yaml:"user"`
+	KeyPath               string `yaml:"key_path"`
+	KnownHostsPath        string `yaml:"known_hosts_path"`
+	InsecureIgnoreHostKey bool   `yaml:"insecure_ignore_host_key"`
 }
 
 type Config struct {
-	ListenAddr   string         `yaml:"listen_addr"`
-	PollInterval time.Duration  `yaml:"poll_interval"`
-	Servers      []ServerConfig `yaml:"servers"`
+	ListenAddr            string         `yaml:"listen_addr"`
+	PollInterval          time.Duration  `yaml:"poll_interval"`
+	KnownHostsPath        string         `yaml:"known_hosts_path"`
+	InsecureIgnoreHostKey bool           `yaml:"insecure_ignore_host_key"`
+	Servers               []ServerConfig `yaml:"servers"`
 }
 
 func defaultSSHUser() string {
@@ -44,17 +48,33 @@ func defaultSSHKeyPath() string {
 	return ed25519Key
 }
 
+func defaultKnownHostsPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".ssh", "known_hosts")
+}
+
+func expandHomePath(p string) string {
+	if len(p) > 0 && p[0] == '~' {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, p[1:])
+	}
+	return p
+}
+
 func DefaultConfig() *Config {
+	knownHosts := defaultKnownHostsPath()
 	return &Config{
-		ListenAddr:   ":8080",
-		PollInterval: 4 * time.Second,
+		ListenAddr:     ":8080",
+		PollInterval:   4 * time.Second,
+		KnownHostsPath: knownHosts,
 		Servers: []ServerConfig{
 			{
-				Name:    "localhost",
-				Host:    "localhost",
-				Port:    22,
-				User:    defaultSSHUser(),
-				KeyPath: defaultSSHKeyPath(),
+				Name:           "localhost",
+				Host:           "localhost",
+				Port:           22,
+				User:           defaultSSHUser(),
+				KeyPath:        defaultSSHKeyPath(),
+				KnownHostsPath: knownHosts,
 			},
 		},
 	}
@@ -75,6 +95,12 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
+	if cfg.KnownHostsPath == "" {
+		cfg.KnownHostsPath = defaultKnownHostsPath()
+	} else {
+		cfg.KnownHostsPath = expandHomePath(cfg.KnownHostsPath)
+	}
+
 	for i := range cfg.Servers {
 		if cfg.Servers[i].Port == 0 {
 			cfg.Servers[i].Port = 22
@@ -84,9 +110,16 @@ func LoadConfig(path string) (*Config, error) {
 		}
 		if cfg.Servers[i].KeyPath == "" {
 			cfg.Servers[i].KeyPath = defaultSSHKeyPath()
-		} else if cfg.Servers[i].KeyPath[0] == '~' {
-			home, _ := os.UserHomeDir()
-			cfg.Servers[i].KeyPath = filepath.Join(home, cfg.Servers[i].KeyPath[1:])
+		} else {
+			cfg.Servers[i].KeyPath = expandHomePath(cfg.Servers[i].KeyPath)
+		}
+		if cfg.Servers[i].KnownHostsPath == "" {
+			cfg.Servers[i].KnownHostsPath = cfg.KnownHostsPath
+		} else {
+			cfg.Servers[i].KnownHostsPath = expandHomePath(cfg.Servers[i].KnownHostsPath)
+		}
+		if !cfg.Servers[i].InsecureIgnoreHostKey && cfg.InsecureIgnoreHostKey {
+			cfg.Servers[i].InsecureIgnoreHostKey = true
 		}
 	}
 

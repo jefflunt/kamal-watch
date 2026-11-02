@@ -12,6 +12,7 @@ import (
 	"github.com/jefflunt/kamal-watch/config"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type SSHPool struct {
@@ -29,6 +30,27 @@ func NewSSHPool(servers []config.ServerConfig) *SSHPool {
 		clients: make(map[string]*ssh.Client),
 		configs: m,
 	}
+}
+
+func hostKeyCallbackForServer(cfg config.ServerConfig) (ssh.HostKeyCallback, error) {
+	if cfg.InsecureIgnoreHostKey {
+		return ssh.InsecureIgnoreHostKey(), nil
+	}
+
+	knownHostsPath := cfg.KnownHostsPath
+	if knownHostsPath == "" {
+		home, _ := os.UserHomeDir()
+		knownHostsPath = filepath.Join(home, ".ssh", "known_hosts")
+	} else if knownHostsPath[0] == '~' {
+		home, _ := os.UserHomeDir()
+		knownHostsPath = filepath.Join(home, knownHostsPath[1:])
+	}
+
+	cb, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("load known_hosts %s (or set insecure_ignore_host_key: true): %w", knownHostsPath, err)
+	}
+	return cb, nil
 }
 
 func (p *SSHPool) GetClient(serverName string) (*ssh.Client, error) {
@@ -66,12 +88,17 @@ func (p *SSHPool) GetClient(serverName string) (*ssh.Client, error) {
 		return nil, fmt.Errorf("parse private key %s: %w", keyPath, err)
 	}
 
+	hostKeyCallback, err := hostKeyCallbackForServer(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User: cfg.User,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         6 * time.Second,
 	}
 

@@ -13,7 +13,7 @@ Inspired by `htop`, the interface favors dense, monospaced terminal telemetry ov
 >
 > **Do not expose Kamal Watch to the public internet.** This early alpha release is built strictly for trusted private networks:
 > - **No HTTP authentication:** Anyone who can reach the web port can view server topology, deployment history, `/api/inventory` JSON, and live Docker logs for every container on your monitored hosts.
-> - **Direct SSH access & unverified host keys:** Kamal Watch connects to your servers with an SSH private key and currently skips `known_hosts` verification (`InsecureIgnoreHostKey`).
+> - **Direct SSH access:** Kamal Watch connects to your servers with an SSH private key and verifies server host keys against `~/.ssh/known_hosts` (or a configured `known_hosts_path`) by default.
 > - **Required posture:** Run it bound to `127.0.0.1` on your workstation, or deploy it inside an isolated LAN, private VPC, or mesh VPN (such as Tailscale or WireGuard) unreachable from the open internet.
 
 ---
