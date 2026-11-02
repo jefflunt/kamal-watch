@@ -6,49 +6,7 @@
   <title>KAMAL WATCH</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" href="/favicon.ico">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
-          },
-          colors: {
-            htop: {
-              bg: '#0c1017',
-              panel: '#161b22',
-              border: '#30363d',
-              barbg: '#21262d',
-              green: '#2ea043',
-              cyan: '#388bfd',
-              magenta: '#bc8cff',
-              yellow: '#d29922',
-              red: '#f85149',
-              blue: '#58a6ff',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { font-family: "JetBrains Mono", ui-monospace, monospace; }
-    .meter-bar {
-      height: 10px;
-      background: #21262d;
-      border: 1px solid #30363d;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-    }
-    .meter-fill-cpu { background: linear-gradient(90deg, #2ea043 0%, #388bfd 50%, #d29922 80%, #f85149 100%); }
-    .meter-fill-mem { background: linear-gradient(90deg, #388bfd 0%, #bc8cff 60%, #d29922 90%); }
-    .meter-fill-swap { background: linear-gradient(90deg, #d29922 0%, #f85149 100%); }
-    .meter-fill-disk { background: linear-gradient(90deg, #2ea043 0%, #388bfd 70%, #d29922 95%); }
-    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .pulse-dot { animation: pulse-dot 1.5s infinite; }
-  </style>
+  <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="min-h-full flex flex-col bg-[#0c1017] text-[#c9d1d9] text-xs antialiased selection:bg-[#388bfd]/30 selection:text-white">
 
