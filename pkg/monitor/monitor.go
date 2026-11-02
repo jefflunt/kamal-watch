@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -147,6 +148,10 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 	if err != nil {
 		inv.Online = false
 		inv.Error = err.Error()
+		var backoffErr *remote.BackoffError
+		if errors.As(err, &backoffErr) && !backoffErr.LastRetry.IsZero() {
+			inv.LastPolled = backoffErr.LastRetry
+		}
 		return inv
 	}
 
