@@ -1,6 +1,8 @@
 package web
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -151,5 +153,64 @@ func TestHandleLogStreamValidation(t *testing.T) {
 				t.Errorf("GET %s: expected status %d, got %d (body: %q)", tc.query, tc.wantStatus, w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+func TestHandleLogStream_PerServerConcurrencyCap(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.MaxConcurrentLogStreams = 2
+
+	srv, err := NewServer(cfg, nil, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	started := make(chan struct{}, 4)
+	releaseStreams := make(chan struct{})
+	srv.streamFunc = func(ctx context.Context, serverName, cmd string, out io.Writer) error {
+		started <- struct{}{}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseStreams:
+			return nil
+		}
+	}
+
+	routes := srv.Routes()
+
+	// Start 2 active streams on app-server-01 (filling the limit of 2)
+	doneCh := make(chan int, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, "/logs/stream?server=app-server-01&container=web-1", nil)
+			w := httptest.NewRecorder()
+			routes.ServeHTTP(w, req)
+			doneCh <- w.Code
+		}()
+	}
+
+	<-started
+	<-started
+
+	// 3rd concurrent stream on app-server-01 must be rejected with 429 Too Many Requests
+	req3 := httptest.NewRequest(http.MethodGet, "/logs/stream?server=app-server-01&container=web-1", nil)
+	w3 := httptest.NewRecorder()
+	routes.ServeHTTP(w3, req3)
+	if w3.Code != http.StatusTooManyRequests {
+		t.Errorf("expected 429 Too Many Requests when per-server cap is reached, got %d", w3.Code)
+	}
+
+	// Stream on a DIFFERENT server (app-server-02) must still be allowed
+	close(releaseStreams)
+	<-doneCh
+	<-doneCh
+
+	// After active streams finish, new stream on app-server-01 succeeds again
+	reqAfter := httptest.NewRequest(http.MethodGet, "/logs/stream?server=app-server-01&container=web-1", nil)
+	wAfter := httptest.NewRecorder()
+	routes.ServeHTTP(wAfter, reqAfter)
+	if wAfter.Code != http.StatusOK {
+		t.Errorf("expected 200 OK after semaphore slot released, got %d", wAfter.Code)
 	}
 }
