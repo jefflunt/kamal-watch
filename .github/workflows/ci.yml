@@ -45,6 +45,9 @@ jobs:
     env:
       CGO_ENABLED: 0
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Install release tools
         run: |
@@ -59,14 +62,7 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           mkdir -p dist
 
-          PLATFORMS=(
-            "linux/amd64"
-            "linux/arm64"
-            "darwin/amd64"
-            "darwin/arm64"
-          )
-
-          for platform in "${PLATFORMS[@]}"; do
+          for platform in "linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64"; do
             OS="${platform%/*}"
             ARCH="${platform#*/}"
             OUT_DIR="kamal-watch-${TAG}-${OS}-${ARCH}"
