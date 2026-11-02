@@ -216,6 +216,147 @@ func TestHandleLogStream_PerServerConcurrencyCap(t *testing.T) {
 	}
 }
 
+func TestServer_BasicAuthAndHealthcheck(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	cfg.Auth = config.AuthConfig{
+		Username: "admin",
+		Password: "secret-password",
+	}
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// 1. Healthcheck /up should succeed without credentials
+	reqUp := httptest.NewRequest(http.MethodGet, "/up", nil)
+	wUp := httptest.NewRecorder()
+	routes.ServeHTTP(wUp, reqUp)
+	if wUp.Code != http.StatusOK {
+		t.Errorf("expected 200 for unauthenticated /up, got %d", wUp.Code)
+	}
+
+	// 2. Dashboard / without credentials should return 401
+	reqUnauth := httptest.NewRequest(http.MethodGet, "/", nil)
+	wUnauth := httptest.NewRecorder()
+	routes.ServeHTTP(wUnauth, reqUnauth)
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for unauthenticated /, got %d", wUnauth.Code)
+	}
+
+	// 3. Dashboard / with wrong password should return 401
+	reqWrong := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqWrong.SetBasicAuth("admin", "wrong")
+	wWrong := httptest.NewRecorder()
+	routes.ServeHTTP(wWrong, reqWrong)
+	if wWrong.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for wrong password, got %d", wWrong.Code)
+	}
+
+	// 4. Dashboard / with valid credentials should return 200
+	reqAuth := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqAuth.SetBasicAuth("admin", "secret-password")
+	wAuth := httptest.NewRecorder()
+	routes.ServeHTTP(wAuth, reqAuth)
+	if wAuth.Code != http.StatusOK {
+		t.Errorf("expected 200 for authenticated /, got %d", wAuth.Code)
+	}
+}
+
+func TestServer_HostHeaderValidation(t *testing.T) {
+	// Loopback bind automatically restricts Host to localhost / 127.0.0.1 / ::1
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	cfg.ListenAddr = "127.0.0.1:8080"
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// Rebound external Host header must be blocked
+	reqEvil := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqEvil.Host = "evil-rebind.example.com:8080"
+	wEvil := httptest.NewRecorder()
+	routes.ServeHTTP(wEvil, reqEvil)
+	if wEvil.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden for DNS rebinding Host header, got %d", wEvil.Code)
+	}
+
+	// Valid localhost Host header must succeed
+	reqLocal := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqLocal.Host = "127.0.0.1:8080"
+	wLocal := httptest.NewRecorder()
+	routes.ServeHTTP(wLocal, reqLocal)
+	if wLocal.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for 127.0.0.1:8080 Host header, got %d", wLocal.Code)
+	}
+
+	// Explicit AllowedHosts list
+	cfg.ListenAddr = ":8080"
+	cfg.AllowedHosts = []string{"watch.internal"}
+	reqCustom := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqCustom.Host = "watch.internal"
+	wCustom := httptest.NewRecorder()
+	routes.ServeHTTP(wCustom, reqCustom)
+	if wCustom.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for allowed host watch.internal, got %d", wCustom.Code)
+	}
+}
+
+func TestEmbeddedStylesAndSecurityHeaders(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// 1. Verify /assets/styles.css serves embedded CSS
+	reqCSS := httptest.NewRequest(http.MethodGet, "/assets/styles.css", nil)
+	wCSS := httptest.NewRecorder()
+	routes.ServeHTTP(wCSS, reqCSS)
+	if wCSS.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /assets/styles.css, got %d", wCSS.Code)
+	}
+	if ct := wCSS.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/css") {
+		t.Errorf("expected text/css Content-Type, got %q", ct)
+	}
+	if !strings.Contains(wCSS.Body.String(), ".meter-bar") {
+		t.Errorf("expected /assets/styles.css to contain compiled utility and meter rules")
+	}
+
+	// 2. Verify dashboard HTML no longer references cdn.tailwindcss.com and includes security headers
+	reqIdx := httptest.NewRequest(http.MethodGet, "/", nil)
+	wIdx := httptest.NewRecorder()
+	routes.ServeHTTP(wIdx, reqIdx)
+	if wIdx.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /, got %d", wIdx.Code)
+	}
+	body := wIdx.Body.String()
+	if strings.Contains(body, "cdn.tailwindcss.com") {
+		t.Errorf("expected cdn.tailwindcss.com script to be removed from index.html")
+	}
+	if !strings.Contains(body, `/assets/styles.css`) {
+		t.Errorf("expected index.html to link /assets/styles.css")
+	}
+
+	if got := wIdx.Header().Get("Referrer-Policy"); got != "no-referrer" {
+		t.Errorf("expected Referrer-Policy: no-referrer, got %q", got)
+	}
+	if got := wIdx.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("expected X-Content-Type-Options: nosniff, got %q", got)
+	}
+	if got := wIdx.Header().Get("X-Frame-Options"); got != "DENY" {
+		t.Errorf("expected X-Frame-Options: DENY, got %q", got)
+	}
+}
+
 func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 	srv, err := NewServer(config.DefaultConfig(), nil, nil)
 	if err != nil {
@@ -241,7 +382,7 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 	var partialBuf strings.Builder
 	if err := srv.tmpl.ExecuteTemplate(&partialBuf, "servers_partial.html", DashboardData{
 		Servers: []*models.ServerInventory{inv},
-		Version: "0.3.0",
+		Version: kamalwatch.Version(),
 	}); err != nil {
 		t.Fatalf("execute servers_partial.html: %v", err)
 	}

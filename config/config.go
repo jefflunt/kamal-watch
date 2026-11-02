@@ -5,12 +5,18 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const DefaultMaxConcurrentLogStreams = 6
+
+type AuthConfig struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
 
 type ServerConfig struct {
 	Name                  string `yaml:"name"`
@@ -28,7 +34,28 @@ type Config struct {
 	MaxConcurrentLogStreams int            `yaml:"max_concurrent_log_streams"`
 	KnownHostsPath          string         `yaml:"known_hosts_path"`
 	InsecureIgnoreHostKey   bool           `yaml:"insecure_ignore_host_key"`
+	Auth                    AuthConfig     `yaml:"auth"`
+	AllowedHosts            []string       `yaml:"allowed_hosts"`
 	Servers                 []ServerConfig `yaml:"servers"`
+}
+
+func FormatListenAddr(listenAddr string) string {
+	if listenAddr == "" {
+		listenAddr = ":8080"
+	}
+	if strings.HasPrefix(listenAddr, ":") {
+		return fmt.Sprintf("http://0.0.0.0%s (all interfaces)", listenAddr)
+	}
+	return fmt.Sprintf("http://%s", listenAddr)
+}
+
+func applyEnvOverrides(cfg *Config) {
+	if u := os.Getenv("KAMAL_WATCH_AUTH_USER"); u != "" {
+		cfg.Auth.Username = u
+	}
+	if p := os.Getenv("KAMAL_WATCH_AUTH_PASSWORD"); p != "" {
+		cfg.Auth.Password = p
+	}
 }
 
 func defaultSSHUser() string {
@@ -90,6 +117,7 @@ func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			applyEnvOverrides(cfg)
 			return cfg, nil
 		}
 		return nil, fmt.Errorf("reading config: %w", err)
@@ -98,6 +126,8 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
+
+	applyEnvOverrides(cfg)
 
 	if cfg.MaxConcurrentLogStreams <= 0 {
 		cfg.MaxConcurrentLogStreams = DefaultMaxConcurrentLogStreams

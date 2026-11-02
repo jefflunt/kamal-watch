@@ -2,11 +2,13 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -24,6 +26,9 @@ import (
 
 //go:embed templates/*
 var templateFS embed.FS
+
+//go:embed assets/styles.css
+var stylesCSS []byte
 
 type Server struct {
 	cfg                  *config.Config
@@ -96,6 +101,8 @@ func NewServer(cfg *config.Config, mon *monitor.Monitor, pool *remote.SSHPool) (
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("GET /up", s.handleUp)
+	mux.HandleFunc("GET /assets/styles.css", s.handleStylesCSS)
 	mux.HandleFunc("GET /favicon.svg", s.handleFavicon)
 	mux.HandleFunc("GET /favicon.ico", s.handleFavicon)
 	mux.HandleFunc("GET /", s.handleIndex)
@@ -106,7 +113,104 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /events", s.handleSSEUpdates)
 	mux.HandleFunc("GET /logs/stream", s.handleLogStream)
 
-	return mux
+	return s.securityHeadersMiddleware(s.hostValidationMiddleware(s.authMiddleware(mux)))
+}
+
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) handleStylesCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(stylesCSS)
+}
+
+func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK\n"))
+}
+
+func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.cfg == nil || (s.cfg.Auth.Username == "" && s.cfg.Auth.Password == "") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/up" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		user, pass, ok := r.BasicAuth()
+		userMatch := subtle.ConstantTimeCompare([]byte(user), []byte(s.cfg.Auth.Username)) == 1
+		passMatch := subtle.ConstantTimeCompare([]byte(pass), []byte(s.cfg.Auth.Password)) == 1
+		if !ok || !userMatch || !passMatch {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Kamal Watch"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isLoopbackListenAddr(listenAddr string) bool {
+	if listenAddr == "" || strings.HasPrefix(listenAddr, ":") {
+		return false
+	}
+	host, _, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		host = listenAddr
+	}
+	host = strings.Trim(host, "[]")
+	return strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1"
+}
+
+func extractHostname(hostHeader string) string {
+	if h, _, err := net.SplitHostPort(hostHeader); err == nil {
+		return strings.Trim(h, "[]")
+	}
+	return strings.Trim(hostHeader, "[]")
+}
+
+func (s *Server) hostValidationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.cfg == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		var allowed []string
+		if len(s.cfg.AllowedHosts) > 0 {
+			allowed = s.cfg.AllowedHosts
+		} else if isLoopbackListenAddr(s.cfg.ListenAddr) {
+			allowed = []string{"localhost", "127.0.0.1", "::1"}
+		}
+
+		if len(allowed) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		reqHost := r.Host
+		reqHostname := extractHostname(reqHost)
+		for _, candidate := range allowed {
+			candidateClean := strings.Trim(candidate, "[]")
+			if strings.EqualFold(reqHost, candidate) || strings.EqualFold(reqHostname, candidateClean) {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.Error(w, "Forbidden: invalid Host header", http.StatusForbidden)
+	})
 }
 
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
