@@ -27,3 +27,9 @@
    - Slide-over terminal modal with SSE log streaming, log filtering, and auto-scroll, protected by a per-server concurrency cap (`max_concurrent_log_streams`, default `6`, returning HTTP `429` when saturated) and HTTP `ReadHeaderTimeout` / `IdleTimeout` limits.
    - Optional HTTP Basic Authentication (`auth.username` / `auth.password` or `KAMAL_WATCH_AUTH_USER` / `KAMAL_WATCH_AUTH_PASSWORD` env overrides), unauthenticated `GET /up` healthcheck endpoint, HTTP `Host` header allowlist middleware (`allowed_hosts` plus automatic loopback DNS-rebinding protection), and hardened response headers (`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`).
    - Concept 2 ("The Phosphor Viewfinder `[ • ]`") branding icon and vector SVG favicon.
+
+4. **CI & Build Pipeline (`.github/workflows/ci.yml`, `cmd/build`, `Dockerfile`)**:
+   - Automated GitHub Actions workflow triggered on version tag pushes (`v*`) and manual workflow dispatch.
+   - Executes inside a `golang:alpine` container mirroring the multi-stage `Dockerfile` build environment.
+   - Validates module dependencies, executes the full test suite (`go test -v ./...`), and verifies clean binary compilation via `cmd/build`.
+

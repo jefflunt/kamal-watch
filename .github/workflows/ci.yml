@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    container:
+      image: golang:alpine
+    env:
+      CGO_ENABLED: 0
+    steps:
+      - name: Install system dependencies
+        run: |
+          apk add --no-cache git ca-certificates bash
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Run test suite
+        run: go test -v ./...
+
+      - name: Build binary
+        run: ./cmd/build
