@@ -57,7 +57,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Kamal Watch Web App listening on http://localhost%s", cfg.ListenAddr)
+		log.Printf("Kamal Watch Web App listening on %s", config.FormatListenAddr(cfg.ListenAddr))
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server error: %v", err)
 		}

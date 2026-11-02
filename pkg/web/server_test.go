@@ -214,3 +214,94 @@ func TestHandleLogStream_PerServerConcurrencyCap(t *testing.T) {
 		t.Errorf("expected 200 OK after semaphore slot released, got %d", wAfter.Code)
 	}
 }
+
+func TestServer_BasicAuthAndHealthcheck(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	cfg.Auth = config.AuthConfig{
+		Username: "admin",
+		Password: "secret-password",
+	}
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// 1. Healthcheck /up should succeed without credentials
+	reqUp := httptest.NewRequest(http.MethodGet, "/up", nil)
+	wUp := httptest.NewRecorder()
+	routes.ServeHTTP(wUp, reqUp)
+	if wUp.Code != http.StatusOK {
+		t.Errorf("expected 200 for unauthenticated /up, got %d", wUp.Code)
+	}
+
+	// 2. Dashboard / without credentials should return 401
+	reqUnauth := httptest.NewRequest(http.MethodGet, "/", nil)
+	wUnauth := httptest.NewRecorder()
+	routes.ServeHTTP(wUnauth, reqUnauth)
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for unauthenticated /, got %d", wUnauth.Code)
+	}
+
+	// 3. Dashboard / with wrong password should return 401
+	reqWrong := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqWrong.SetBasicAuth("admin", "wrong")
+	wWrong := httptest.NewRecorder()
+	routes.ServeHTTP(wWrong, reqWrong)
+	if wWrong.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for wrong password, got %d", wWrong.Code)
+	}
+
+	// 4. Dashboard / with valid credentials should return 200
+	reqAuth := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqAuth.SetBasicAuth("admin", "secret-password")
+	wAuth := httptest.NewRecorder()
+	routes.ServeHTTP(wAuth, reqAuth)
+	if wAuth.Code != http.StatusOK {
+		t.Errorf("expected 200 for authenticated /, got %d", wAuth.Code)
+	}
+}
+
+func TestServer_HostHeaderValidation(t *testing.T) {
+	// Loopback bind automatically restricts Host to localhost / 127.0.0.1 / ::1
+	cfg := config.DefaultConfig()
+	cfg.Servers = nil
+	cfg.ListenAddr = "127.0.0.1:8080"
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	routes := srv.Routes()
+
+	// Rebound external Host header must be blocked
+	reqEvil := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqEvil.Host = "evil-rebind.example.com:8080"
+	wEvil := httptest.NewRecorder()
+	routes.ServeHTTP(wEvil, reqEvil)
+	if wEvil.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden for DNS rebinding Host header, got %d", wEvil.Code)
+	}
+
+	// Valid localhost Host header must succeed
+	reqLocal := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqLocal.Host = "127.0.0.1:8080"
+	wLocal := httptest.NewRecorder()
+	routes.ServeHTTP(wLocal, reqLocal)
+	if wLocal.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for 127.0.0.1:8080 Host header, got %d", wLocal.Code)
+	}
+
+	// Explicit AllowedHosts list
+	cfg.ListenAddr = ":8080"
+	cfg.AllowedHosts = []string{"watch.internal"}
+	reqCustom := httptest.NewRequest(http.MethodGet, "/api/inventory", nil)
+	reqCustom.Host = "watch.internal"
+	wCustom := httptest.NewRecorder()
+	routes.ServeHTTP(wCustom, reqCustom)
+	if wCustom.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for allowed host watch.internal, got %d", wCustom.Code)
+	}
+}

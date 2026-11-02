@@ -6,6 +6,17 @@ poll_interval: 4s
 # Path to SSH known_hosts file (defaults to ~/.ssh/known_hosts)
 # known_hosts_path: ~/.ssh/known_hosts
 
+# Optional HTTP Basic Auth (or set KAMAL_WATCH_AUTH_USER / KAMAL_WATCH_AUTH_PASSWORD env vars)
+# auth:
+#   username: admin
+#   password: change-me
+
+# Optional Host header allowlist (protects against DNS rebinding; loopback binds enforce localhost/127.0.0.1 automatically)
+# allowed_hosts:
+#   - localhost
+#   - 127.0.0.1
+#   - watch.internal
+
 servers:
   - name: app-server-01
     host: 10.0.1.10

@@ -102,3 +102,25 @@ servers:
 		t.Errorf("expected custom-server to use /custom/known_hosts, got %s", cfg.Servers[1].KnownHostsPath)
 	}
 }
+
+func TestFormatListenAddr(t *testing.T) {
+	if got := FormatListenAddr(":8080"); got != "http://0.0.0.0:8080 (all interfaces)" {
+		t.Errorf("FormatListenAddr(:8080) = %q", got)
+	}
+	if got := FormatListenAddr("127.0.0.1:8080"); got != "http://127.0.0.1:8080" {
+		t.Errorf("FormatListenAddr(127.0.0.1:8080) = %q", got)
+	}
+}
+
+func TestLoadConfig_AuthAndEnvOverrides(t *testing.T) {
+	t.Setenv("KAMAL_WATCH_AUTH_USER", "envadmin")
+	t.Setenv("KAMAL_WATCH_AUTH_PASSWORD", "envsecret")
+
+	cfg, err := LoadConfig("/nonexistent/config.yml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Auth.Username != "envadmin" || cfg.Auth.Password != "envsecret" {
+		t.Errorf("expected env auth override, got %+v", cfg.Auth)
+	}
+}

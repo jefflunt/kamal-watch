@@ -137,7 +137,7 @@ proxy:
   host: watch.internal # Private DNS / split-horizon host — do NOT expose publicly
   app_port: 8080
   healthcheck:
-    path: /api/inventory
+    path: /up
     interval: 5
     timeout: 10
 
@@ -177,6 +177,7 @@ Every `poll_interval`, `kamal-watch` runs a single batched, read-only SSH comman
 | Method & Path | Purpose |
 | :--- | :--- |
 | `GET /` | Main `htop`-style multi-server dashboard and interactive SSE log drawer |
+| `GET /up` | Lightweight unauthenticated healthcheck endpoint for `kamal-proxy` / Docker |
 | `GET /server/{name}` | Full Docker container table for a single server |
 | `GET /server/{name}/app/{app}` | Service role breakdown, aggregate CPU/RAM, and Kamal audit log history |
 | `GET /api/inventory` | JSON snapshot of all servers and apps (also used for Kamal healthchecks) |
