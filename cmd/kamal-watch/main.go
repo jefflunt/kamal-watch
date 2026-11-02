@@ -50,8 +50,10 @@ func main() {
 	}
 
 	httpServer := &http.Server{
-		Addr:    cfg.ListenAddr,
-		Handler: server.Routes(),
+		Addr:              cfg.ListenAddr,
+		Handler:           server.Routes(),
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {

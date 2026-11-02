@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jefflunt/kamal-watch"
@@ -24,10 +26,14 @@ import (
 var templateFS embed.FS
 
 type Server struct {
-	cfg     *config.Config
-	monitor *monitor.Monitor
-	pool    *remote.SSHPool
-	tmpl    *template.Template
+	cfg                  *config.Config
+	monitor              *monitor.Monitor
+	pool                 *remote.SSHPool
+	tmpl                 *template.Template
+	streamSemMu          sync.Mutex
+	streamSems           map[string]chan struct{}
+	maxConcurrentStreams int
+	streamFunc           func(ctx context.Context, serverName, cmd string, out io.Writer) error
 }
 
 func NewServer(cfg *config.Config, mon *monitor.Monitor, pool *remote.SSHPool) (*Server, error) {
@@ -71,11 +77,18 @@ func NewServer(cfg *config.Config, mon *monitor.Monitor, pool *remote.SSHPool) (
 		return nil, fmt.Errorf("parsing templates: %w", err)
 	}
 
+	maxStreams := config.DefaultMaxConcurrentLogStreams
+	if cfg != nil && cfg.MaxConcurrentLogStreams > 0 {
+		maxStreams = cfg.MaxConcurrentLogStreams
+	}
+
 	return &Server{
-		cfg:     cfg,
-		monitor: mon,
-		pool:    pool,
-		tmpl:    tmpl,
+		cfg:                  cfg,
+		monitor:              mon,
+		pool:                 pool,
+		tmpl:                 tmpl,
+		streamSems:           make(map[string]chan struct{}),
+		maxConcurrentStreams: maxStreams,
 	}, nil
 }
 
@@ -236,6 +249,27 @@ const (
 	maxLogTail     = 10000
 )
 
+func (s *Server) acquireStreamSlot(serverName string) (func(), bool) {
+	s.streamSemMu.Lock()
+	sem, ok := s.streamSems[serverName]
+	if !ok {
+		limit := s.maxConcurrentStreams
+		if limit <= 0 {
+			limit = config.DefaultMaxConcurrentLogStreams
+		}
+		sem = make(chan struct{}, limit)
+		s.streamSems[serverName] = sem
+	}
+	s.streamSemMu.Unlock()
+
+	select {
+	case sem <- struct{}{}:
+		return func() { <-sem }, true
+	default:
+		return nil, false
+	}
+}
+
 func (s *Server) handleLogStream(w http.ResponseWriter, r *http.Request) {
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -269,7 +303,7 @@ func (s *Server) handleLogStream(w http.ResponseWriter, r *http.Request) {
 		tailLines = parsedTail
 	}
 
-	if s.pool == nil {
+	if s.pool == nil && s.streamFunc == nil {
 		http.Error(w, "SSH pool unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -279,6 +313,13 @@ func (s *Server) handleLogStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
+
+	releaseSlot, acquired := s.acquireStreamSlot(serverName)
+	if !acquired {
+		http.Error(w, "Too many concurrent log streams for this server", http.StatusTooManyRequests)
+		return
+	}
+	defer releaseSlot()
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -298,6 +339,10 @@ func (s *Server) handleLogStream(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
+	if s.streamFunc != nil {
+		_ = s.streamFunc(ctx, serverName, cmd, lw)
+		return
+	}
 	_ = s.pool.StreamCommand(ctx, serverName, cmd, lw)
 }
 

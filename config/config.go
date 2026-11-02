@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const DefaultMaxConcurrentLogStreams = 6
+
 type ServerConfig struct {
 	Name                  string `yaml:"name"`
 	Host                  string `yaml:"host"`
@@ -21,11 +23,12 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	ListenAddr            string         `yaml:"listen_addr"`
-	PollInterval          time.Duration  `yaml:"poll_interval"`
-	KnownHostsPath        string         `yaml:"known_hosts_path"`
-	InsecureIgnoreHostKey bool           `yaml:"insecure_ignore_host_key"`
-	Servers               []ServerConfig `yaml:"servers"`
+	ListenAddr              string         `yaml:"listen_addr"`
+	PollInterval            time.Duration  `yaml:"poll_interval"`
+	MaxConcurrentLogStreams int            `yaml:"max_concurrent_log_streams"`
+	KnownHostsPath          string         `yaml:"known_hosts_path"`
+	InsecureIgnoreHostKey   bool           `yaml:"insecure_ignore_host_key"`
+	Servers                 []ServerConfig `yaml:"servers"`
 }
 
 func defaultSSHUser() string {
@@ -64,9 +67,10 @@ func expandHomePath(p string) string {
 func DefaultConfig() *Config {
 	knownHosts := defaultKnownHostsPath()
 	return &Config{
-		ListenAddr:     ":8080",
-		PollInterval:   4 * time.Second,
-		KnownHostsPath: knownHosts,
+		ListenAddr:              ":8080",
+		PollInterval:            4 * time.Second,
+		MaxConcurrentLogStreams: DefaultMaxConcurrentLogStreams,
+		KnownHostsPath:          knownHosts,
 		Servers: []ServerConfig{
 			{
 				Name:           "localhost",
@@ -93,6 +97,10 @@ func LoadConfig(path string) (*Config, error) {
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
+	}
+
+	if cfg.MaxConcurrentLogStreams <= 0 {
+		cfg.MaxConcurrentLogStreams = DefaultMaxConcurrentLogStreams
 	}
 
 	if cfg.KnownHostsPath == "" {
