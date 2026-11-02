@@ -75,6 +75,7 @@ func NewServer(cfg *config.Config, mon *monitor.Monitor, pool *remote.SSHPool) (
 			}
 			return s
 		},
+		"join": strings.Join,
 	}
 
 	tmpl, err := template.New("base").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")

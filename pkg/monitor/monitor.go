@@ -142,7 +142,7 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 		Apps:       make(map[string]*models.KamalApp),
 	}
 
-	batchScript := `echo "___SECTION:SYS___" && uptime && nproc && echo "___SECTION:TOP___" && (top -bn1 | head -n 5 2>/dev/null || true) && echo "___SECTION:DISK___" && df -h / && echo "___SECTION:MEM___" && free -h && echo "___SECTION:STATS___" && (docker stats --no-stream --format '{{json .}}' 2>/dev/null || true) && echo "___SECTION:DOCKER___" && docker ps -a --format '{{json .}}' && echo "___SECTION:PROXY___" && (docker exec kamal-proxy kamal-proxy list 2>/dev/null || true) && echo "___SECTION:AUDIT___" && head -n 30 "$HOME"/.kamal/*-audit.log 2>/dev/null || true`
+	batchScript := `echo "___SECTION:SYS___" && uptime && nproc && echo "___SECTION:TOP___" && (top -bn1 | head -n 5 2>/dev/null || true) && echo "___SECTION:DISK___" && df -h / && echo "___SECTION:MEM___" && free -h && echo "___SECTION:HOST_UPDATES___" && (if [ -f /run/reboot-required ] || [ -f /var/run/reboot-required ]; then echo "REBOOT_REQUIRED:1"; elif command -v needs-restarting >/dev/null 2>&1; then if needs-restarting -r >/dev/null 2>&1; then echo "REBOOT_REQUIRED:0"; else echo "REBOOT_REQUIRED:1"; fi; else echo "REBOOT_REQUIRED:0"; fi; echo "REBOOT_PKGS_START"; cat /run/reboot-required.pkgs /var/run/reboot-required.pkgs 2>/dev/null | sort -u || true; echo "REBOOT_PKGS_END"; echo "UPDATES_START"; if [ -f /var/lib/update-notifier/updates-available ]; then cat /var/lib/update-notifier/updates-available 2>/dev/null || true; elif [ -f /var/run/motd.dynamic ]; then cat /var/run/motd.dynamic 2>/dev/null || true; fi; echo "UPDATES_END") && echo "___SECTION:STATS___" && (docker stats --no-stream --format '{{json .}}' 2>/dev/null || true) && echo "___SECTION:DOCKER___" && docker ps -a --format '{{json .}}' && echo "___SECTION:PROXY___" && (docker exec kamal-proxy kamal-proxy list 2>/dev/null || true) && echo "___SECTION:AUDIT___" && head -n 30 "$HOME"/.kamal/*-audit.log 2>/dev/null || true`
 
 	out, err := m.pool.RunCommand(ctx, srv.Name, batchScript)
 	if err != nil {
@@ -236,6 +236,11 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 				inv.Health.SwapUsed = fields[2]
 			}
 		}
+	}
+
+	// Parse Host Updates & Reboot-Required State
+	if hostUpdates, ok := sectionMap["HOST_UPDATES"]; ok {
+		parseHostUpdates(hostUpdates, &inv.Health)
 	}
 
 	// Parse Container Stats
@@ -461,7 +466,76 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 	return inv
 }
 
-var auditLineRegex = regexp.MustCompile(`^\[(.*?)\]\s+\[(.*?)\]\s+(.*)$`)
+var (
+	auditLineRegex       = regexp.MustCompile(`^\[(.*?)\]\s+\[(.*?)\]\s+(.*)$`)
+	updatesTotalRegex    = regexp.MustCompile(`(?i)(\d+)\s+(?:updates?|packages?)\s+(?:can\s+be\s+applied|can\s+be\s+updated|are\s+available)`)
+	updatesSecurityRegex = regexp.MustCompile(`(?i)(\d+)\s+(?:of\s+these\s+updates?\s+(?:is\s+a|are)\s+standard\s+security\s+updates?|updates?\s+(?:is\s+a|are)\s+(?:standard\s+)?security\s+updates?|are\s+security\s+updates?|security\s+updates?)`)
+)
+
+func parseHostUpdates(body string, health *models.HostHealth) {
+	if health == nil {
+		return
+	}
+
+	var mode string
+	var summaryLines []string
+	seenPkgs := make(map[string]bool)
+
+	for _, rawLine := range strings.Split(body, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(line, "REBOOT_REQUIRED:"):
+			val := strings.TrimSpace(strings.TrimPrefix(line, "REBOOT_REQUIRED:"))
+			health.RebootRequired = val == "1" || strings.EqualFold(val, "true")
+		case line == "REBOOT_PKGS_START":
+			mode = "pkgs"
+		case line == "REBOOT_PKGS_END":
+			mode = ""
+		case line == "UPDATES_START":
+			mode = "updates"
+		case line == "UPDATES_END":
+			mode = ""
+		case mode == "pkgs":
+			if !seenPkgs[line] {
+				seenPkgs[line] = true
+				health.RebootRequiredPkgs = append(health.RebootRequiredPkgs, line)
+			}
+		case mode == "updates":
+			lower := strings.ToLower(line)
+			if strings.HasPrefix(lower, "to see these additional updates") ||
+				strings.HasPrefix(lower, "expanded security maintenance") ||
+				strings.HasPrefix(lower, "enable esm") ||
+				strings.HasPrefix(lower, "see https://") {
+				continue
+			}
+
+			matched := false
+			if m := updatesTotalRegex.FindStringSubmatch(line); len(m) == 2 {
+				if n, err := strconv.Atoi(m[1]); err == nil {
+					health.UpdatesAvailable = n
+					matched = true
+				}
+			}
+			if m := updatesSecurityRegex.FindStringSubmatch(line); len(m) == 2 {
+				if n, err := strconv.Atoi(m[1]); err == nil {
+					health.SecurityUpdates = n
+					matched = true
+				}
+			}
+			if matched {
+				summaryLines = append(summaryLines, line)
+			}
+		}
+	}
+
+	if len(summaryLines) > 0 {
+		health.UpdatesSummary = strings.Join(summaryLines, " ")
+	}
+}
 
 func parseAuditLines(body string) []models.DeployEvent {
 	var events []models.DeployEvent

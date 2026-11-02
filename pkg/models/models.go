@@ -79,20 +79,25 @@ type KamalApp struct {
 }
 
 type HostHealth struct {
-	Uptime       string  `json:"uptime"`
-	LoadAvg      string  `json:"load_avg"`
-	CPUUsagePerc float64 `json:"cpu_usage_perc"`
-	CPUCores     int     `json:"cpu_cores"`
-	DiskUsage    string  `json:"disk_usage"`
-	MemTotal     string  `json:"mem_total"`
-	MemUsed      string  `json:"mem_used"`
-	MemAvailable string  `json:"mem_available"`
-	MemUsedPerc  float64 `json:"mem_used_perc"`
-	SwapTotal    string  `json:"swap_total"`
-	SwapUsed     string  `json:"swap_used"`
-	SwapUsedPerc float64 `json:"swap_used_perc"`
-	TasksSummary string  `json:"tasks_summary"`
-	DockerActive bool    `json:"docker_active"`
+	Uptime             string   `json:"uptime"`
+	LoadAvg            string   `json:"load_avg"`
+	CPUUsagePerc       float64  `json:"cpu_usage_perc"`
+	CPUCores           int      `json:"cpu_cores"`
+	DiskUsage          string   `json:"disk_usage"`
+	MemTotal           string   `json:"mem_total"`
+	MemUsed            string   `json:"mem_used"`
+	MemAvailable       string   `json:"mem_available"`
+	MemUsedPerc        float64  `json:"mem_used_perc"`
+	SwapTotal          string   `json:"swap_total"`
+	SwapUsed           string   `json:"swap_used"`
+	SwapUsedPerc       float64  `json:"swap_used_perc"`
+	TasksSummary       string   `json:"tasks_summary"`
+	DockerActive       bool     `json:"docker_active"`
+	RebootRequired     bool     `json:"reboot_required"`
+	RebootRequiredPkgs []string `json:"reboot_required_pkgs,omitempty"`
+	UpdatesAvailable   int      `json:"updates_available"`
+	SecurityUpdates    int      `json:"security_updates"`
+	UpdatesSummary     string   `json:"updates_summary,omitempty"`
 }
 
 type ServerInventory struct {

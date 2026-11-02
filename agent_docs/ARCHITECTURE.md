@@ -14,6 +14,7 @@
    - Periodically polls configured hosts at a defined cadence (default 4s).
    - Ingests:
      - Host resource health: Load averages, CPU cores, RAM / Swap utilization, root disk space.
+     - Host maintenance posture: Reboot-required detection (`/run/reboot-required`, `/run/reboot-required.pkgs`, `needs-restarting -r`) and cached pending OS/security updates (`/var/lib/update-notifier/updates-available`, `/var/run/motd.dynamic`).
      - Docker container status: Active vs exited containers, image tags, role labels (`web`, `job`, accessories).
      - Kamal proxy integration: Routes, virtual hosts, TLS certificate status.
      - Kamal audit logs: Deployment history from `$HOME/.kamal/<app>-audit.log`.

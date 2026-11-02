@@ -31,6 +31,14 @@
       </div>
 
       <div class="flex items-center gap-3 text-xs font-mono">
+        {{ if .Online }}
+          {{ if .Health.RebootRequired }}
+            <span class="px-1.5 py-0.2 rounded border border-[#da3633] bg-[#da3633]/20 text-[#f85149] font-semibold" {{ if .Health.RebootRequiredPkgs }}title="Packages requiring reboot: {{ join .Health.RebootRequiredPkgs ", " }}"{{ end }}>⟳ Reboot Required</span>
+          {{ end }}
+          {{ if or (gt .Health.UpdatesAvailable 0) (gt .Health.SecurityUpdates 0) }}
+            <span class="px-1.5 py-0.2 rounded border border-[#d29922] bg-[#d29922]/20 text-[#d29922] font-semibold" {{ if .Health.UpdatesSummary }}title="{{ .Health.UpdatesSummary }}"{{ end }}>Updates: {{ .Health.UpdatesAvailable }}{{ if gt .Health.SecurityUpdates 0 }} ({{ .Health.SecurityUpdates }} sec){{ end }}</span>
+          {{ end }}
+        {{ end }}
         <span class="px-1.5 py-0.2 rounded border {{ if .Online }}border-[#238636] bg-[#238636]/20 text-[#7ee787]{{ else }}border-[#da3633] bg-[#da3633]/20 text-[#f85149]{{ end }}">
           {{ if .Online }}ONLINE{{ else }}OFFLINE{{ end }}
         </span>

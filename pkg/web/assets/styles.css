@@ -88,6 +88,7 @@ input::placeholder{opacity:1;color:#6e7681}
 .border-\[\#238636\]{border-color:#238636}
 .border-\[\#238636\]\/50{border-color:rgba(35,134,54,0.5)}
 .border-\[\#30363d\]{border-color:#30363d}
+.border-\[\#d29922\]{border-color:#d29922}
 .border-\[\#da3633\]{border-color:#da3633}
 .bg-transparent{background-color:transparent}
 .bg-black\/80{background-color:rgba(0,0,0,0.8)}
@@ -101,6 +102,7 @@ input::placeholder{opacity:1;color:#6e7681}
 .bg-\[\#21262d\]{background-color:#21262d}
 .bg-\[\#238636\]\/20{background-color:rgba(35,134,54,0.2)}
 .bg-\[\#2ea043\]{background-color:#2ea043}
+.bg-\[\#d29922\]\/20{background-color:rgba(210,153,34,0.2)}
 .bg-\[\#da3633\]\/10{background-color:rgba(218,54,51,0.1)}
 .bg-\[\#da3633\]\/20{background-color:rgba(218,54,51,0.2)}
 .p-1{padding:0.25rem}
