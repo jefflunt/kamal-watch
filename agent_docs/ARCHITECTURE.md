@@ -6,7 +6,7 @@
 ## Core Components
 
 1. **Remote SSH Pool (`pkg/remote/ssh.go`)**:
-   - Manages persistent SSH client connections using private key authentication.
+   - Manages persistent SSH client connections using private key authentication and verifies server host keys against `~/.ssh/known_hosts` (or a configured `known_hosts_path`) by default, with an optional `insecure_ignore_host_key` override.
    - Provides safe thread-safe execution of diagnostic commands (`uptime`, `docker stats`, `docker ps`, `kamal-proxy`) and real-time streaming command execution (`docker logs --follow`).
 
 2. **Telemetry Monitor (`pkg/monitor/monitor.go`)**:
