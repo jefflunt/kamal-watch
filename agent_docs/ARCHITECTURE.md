@@ -32,4 +32,6 @@
    - Automated GitHub Actions workflow triggered on version tag pushes (`v*`) and manual workflow dispatch.
    - Executes inside a `golang:alpine` container mirroring the multi-stage `Dockerfile` build environment.
    - Validates module dependencies, executes the full test suite (`go test -v ./...`), and verifies clean binary compilation via `cmd/build`.
+   - On tagged pushes, automatically cross-compiles release binaries for Linux (`amd64`, `arm64`) and macOS (`amd64`, `arm64`), generates SHA-256 checksums, and publishes an official GitHub Release with release notes and distribution tarballs.
+
 

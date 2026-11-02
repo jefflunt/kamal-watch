@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   ci:
     name: Build & Test
@@ -31,3 +34,58 @@ jobs:
 
       - name: Build binary
         run: ./cmd/build
+
+  release:
+    name: Publish Release
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    container:
+      image: golang:alpine
+    env:
+      CGO_ENABLED: 0
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Install release tools
+        run: |
+          apk add --no-cache git ca-certificates bash tar gzip github-cli
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build release archives
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p dist
+
+          PLATFORMS=(
+            "linux/amd64"
+            "linux/arm64"
+            "darwin/amd64"
+            "darwin/arm64"
+          )
+
+          for platform in "${PLATFORMS[@]}"; do
+            OS="${platform%/*}"
+            ARCH="${platform#*/}"
+            OUT_DIR="kamal-watch-${TAG}-${OS}-${ARCH}"
+            mkdir -p "${OUT_DIR}"
+            GOOS="${OS}" GOARCH="${ARCH}" go build -trimpath -ldflags="-s -w" -o "${OUT_DIR}/kamal-watch" ./cmd/kamal-watch
+            cp README.md LICENSE kamal-watch.example.yml "${OUT_DIR}/" 2>/dev/null || true
+            tar -czf "dist/${OUT_DIR}.tar.gz" "${OUT_DIR}"
+            rm -rf "${OUT_DIR}"
+          done
+
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+          cd ..
+
+      - name: Create GitHub Release
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --generate-notes \
+            --verify-tag \
+            dist/*
