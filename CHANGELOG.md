@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-11-02
+
+### Security
+- Added optional HTTP Basic Authentication (`auth.username` / `auth.password` and `KAMAL_WATCH_AUTH_USER` / `KAMAL_WATCH_AUTH_PASSWORD` environment overrides) with constant-time credential comparison (#3, #9).
+- Added HTTP `Host` header validation (`allowed_hosts` config and automatic `localhost`/`127.0.0.1`/`::1` enforcement on loopback binds) to guard against DNS-rebinding attacks (#3, #9).
+
+### Added
+- Unauthenticated `GET /up` healthcheck endpoint for `kamal-proxy` and container probes (#3, #9).
+- Accurate startup listen address logging (`FormatListenAddr`) distinguishing `0.0.0.0` (all interfaces) from loopback binds (#3, #9).
+
 ## [0.3.0] - 2026-11-02
 
 ### Added
