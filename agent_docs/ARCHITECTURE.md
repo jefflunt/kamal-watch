@@ -7,6 +7,7 @@
 
 1. **Remote SSH Pool (`pkg/remote/ssh.go`)**:
    - Manages persistent SSH client connections using private key authentication and verifies server host keys against `~/.ssh/known_hosts` (or a configured `known_hosts_path`) by default, with an optional `insecure_ignore_host_key` override.
+   - Tracks per-host exponential backoff (`4s` up to `60s`) on dial failures (`BackoffError`), invalidates broken or timed-out client connections automatically, and closes all pooled SSH connections cleanly on shutdown.
    - Provides safe thread-safe execution of diagnostic commands (`uptime`, `docker stats`, `docker ps`, `kamal-proxy`) and real-time streaming command execution (`docker logs --follow`).
 
 2. **Telemetry Monitor (`pkg/monitor/monitor.go`)**:
