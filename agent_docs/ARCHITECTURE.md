@@ -13,7 +13,7 @@
 2. **Telemetry Monitor (`pkg/monitor/monitor.go`)**:
    - Periodically polls configured hosts at a defined cadence (default 4s).
    - Ingests:
-     - Host resource health: Load averages, CPU cores, RAM / Swap utilization, root disk space.
+     - Host resource health: Load averages, CPU sockets/cores/model numbers, per-core CPU utilization (via `/proc/stat` deltas), RAM / Swap utilization, root disk space.
      - Host maintenance posture: Reboot-required detection (`/run/reboot-required`, `/run/reboot-required.pkgs`, `needs-restarting -r`) and cached pending OS/security updates (`/var/lib/update-notifier/updates-available`, `/var/run/motd.dynamic`).
      - Docker container status: Active vs exited containers, image tags, role labels (`web`, `job`, accessories).
      - Kamal proxy integration: Routes, virtual hosts, TLS certificate status.
@@ -23,7 +23,9 @@
 3. **Web Server & UI (`pkg/web/server.go`, `pkg/web/assets/`, & `pkg/web/templates/`)**:
    - Monospaced, high-density terminal interface inspired by `htop`, displaying the embedded release version (`version.go` -> `VERSION`) in the top navigation bar and serving self-contained compiled CSS (`GET /assets/styles.css`) with zero external CDN dependencies.
    - Live telemetry updates without full page reloads via `/partial/servers` DOM swapping.
-   - Preserves user interaction state (collapsed/expanded services) across periodic refreshes.
+   - Preserves user interaction state (collapsed/expanded services and unified vs. per-core CPU meter view preference in `localStorage`) across periodic refreshes.
+   - Simplified host headers (`<name>@<host>`) and logical service rows without redundant bracket tags.
+   - Interactive CPU meter header displaying `<sockets>x<cores> [<model>]` with click-to-toggle between unified and multi-column per-core utilization meters across all servers.
    - Slide-over terminal modal with SSE log streaming, log filtering, and auto-scroll, protected by a per-server concurrency cap (`max_concurrent_log_streams`, default `6`, returning HTTP `429` when saturated) and HTTP `ReadHeaderTimeout` / `IdleTimeout` limits.
    - Optional HTTP Basic Authentication (`auth.username` / `auth.password` or `KAMAL_WATCH_AUTH_USER` / `KAMAL_WATCH_AUTH_PASSWORD` env overrides), unauthenticated `GET /up` healthcheck endpoint, HTTP `Host` header allowlist middleware (`allowed_hosts` plus automatic loopback DNS-rebinding protection), and hardened response headers (`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`).
    - Concept 2 ("The Phosphor Viewfinder `[ • ]`") branding icon and vector SVG favicon.

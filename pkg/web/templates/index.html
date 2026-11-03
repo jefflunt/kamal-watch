@@ -87,6 +87,29 @@
     let activeEventSource = null;
     let rawLogLines = [];
 
+    function getCpuView() {
+      return localStorage.getItem('kamal-watch-cpu-view') || 'per-core';
+    }
+
+    function applyCpuView(view) {
+      const currentView = view || getCpuView();
+      const isUnified = currentView === 'unified';
+      document.querySelectorAll('.cpu-unified').forEach(el => {
+        if (isUnified) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      });
+      document.querySelectorAll('.cpu-per-core').forEach(el => {
+        if (isUnified) el.classList.add('hidden');
+        else el.classList.remove('hidden');
+      });
+    }
+
+    function toggleCpuView() {
+      const newView = getCpuView() === 'unified' ? 'per-core' : 'unified';
+      localStorage.setItem('kamal-watch-cpu-view', newView);
+      applyCpuView(newView);
+    }
+
     function toggleService(serviceId) {
       const rows = document.querySelectorAll(`[data-service="${serviceId}"]`);
       const icon = document.getElementById(`icon-${serviceId}`);
@@ -244,11 +267,17 @@
               icon.className = 'text-[#58a6ff] hover:text-white transition-transform duration-150 inline-block font-bold text-xs';
             }
           });
+
+          // Re-apply persisted CPU view preference (unified vs per-core)
+          applyCpuView();
         }
       } catch (err) {
         console.error('Auto-refresh error:', err);
       }
     }
+
+    // Initialize persisted CPU view on initial load
+    applyCpuView();
 
     // Poll every 4 seconds (less than 5s requirement)
     setInterval(refreshServersData, 4000);

@@ -409,3 +409,73 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 		t.Errorf("expected server.html to contain 'Updates: 5 (1 sec)', got: %s", serverHTML)
 	}
 }
+
+func TestTemplatesRenderEnhancedLabelsAndCPUMeters(t *testing.T) {
+	srv, err := NewServer(config.DefaultConfig(), nil, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	inv := &models.ServerInventory{
+		ServerName: "compute-01",
+		Host:       "192.168.0.31",
+		Online:     true,
+		Health: models.HostHealth{
+			CPUSockets:    1,
+			CPUCores:      32,
+			CPUModel:      "AMD 5950X",
+			CPUUsagePerc:  14.5,
+			CPUCoresUsage: []float64{12.0, 15.0, 5.0, 30.0},
+		},
+		Apps: map[string]*models.KamalApp{
+			"my-service": {
+				Name: "my-service",
+				Aggregates: models.ServiceAggregates{
+					RunningContainers: 1,
+					TotalContainers:   1,
+				},
+			},
+		},
+	}
+
+	var partialBuf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&partialBuf, "servers_partial.html", DashboardData{
+		Servers: []*models.ServerInventory{inv},
+		Version: kamalwatch.Version(),
+	}); err != nil {
+		t.Fatalf("execute servers_partial.html: %v", err)
+	}
+	html := partialBuf.String()
+
+	// 1. Check server label: compute-01@192.168.0.31 and no "SERVER:"
+	if !strings.Contains(html, "compute-01@192.168.0.31") {
+		t.Errorf("expected server label compute-01@192.168.0.31, got: %s", html)
+	}
+	if strings.Contains(html, "SERVER:") {
+		t.Errorf("expected 'SERVER:' prefix to be removed from server label")
+	}
+
+	// 2. Check CPU label: 1x32 [AMD 5950X] and no "1 [CPU Total:"
+	if !strings.Contains(html, "1x32 [AMD 5950X]") {
+		t.Errorf("expected CPU label 1x32 [AMD 5950X], got: %s", html)
+	}
+	if strings.Contains(html, "1 [CPU Total:") {
+		t.Errorf("expected '1 [CPU Total:' to be replaced by enhanced CPU label")
+	}
+
+	// 3. Check service label: "my-service" without "[service]"
+	if !strings.Contains(html, "my-service") {
+		t.Errorf("expected service name 'my-service' in html")
+	}
+	if strings.Contains(html, "[service]") {
+		t.Errorf("expected '[service]' tag to be removed from service label")
+	}
+
+	// 4. Check unified and per-core meter containers
+	if !strings.Contains(html, "cpu-unified") {
+		t.Errorf("expected .cpu-unified container in html")
+	}
+	if !strings.Contains(html, "cpu-per-core") {
+		t.Errorf("expected .cpu-per-core container in html")
+	}
+}

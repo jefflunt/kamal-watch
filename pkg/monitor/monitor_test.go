@@ -209,3 +209,139 @@ UPDATES_END`,
 		})
 	}
 }
+
+func TestCleanCPUModel(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{
+			input: "model name : AMD Ryzen 9 5950X 16-Core Processor",
+			want:  "AMD 5950X",
+		},
+		{
+			input: "model name : AMD Ryzen 7 5800X 8-Core Processor",
+			want:  "AMD 5800X",
+		},
+		{
+			input: "model name : Intel(R) Core(TM) i9-10900K CPU @ 3.70GHz",
+			want:  "Intel i9-10900K",
+		},
+		{
+			input: "model name : Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz",
+			want:  "Intel Xeon Gold 6248R",
+		},
+		{
+			input: "model name : Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+			want:  "Intel Xeon E5-2680 v4",
+		},
+		{
+			input: "AMD EPYC 7763 64-Core Processor",
+			want:  "AMD EPYC 7763",
+		},
+		{
+			input: "Apple M1 Max",
+			want:  "Apple M1 Max",
+		},
+		{
+			input: "ARM Neoverse-N1",
+			want:  "ARM Neoverse-N1",
+		},
+		{
+			input: "",
+			want:  "CPU",
+		},
+	}
+
+	for _, tc := range tests {
+		got := CleanCPUModel(tc.input)
+		if got != tc.want {
+			t.Errorf("CleanCPUModel(%q) = %q; want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestCPULabel(t *testing.T) {
+	tests := []struct {
+		health models.HostHealth
+		want   string
+	}{
+		{
+			health: models.HostHealth{
+				CPUSockets: 1,
+				CPUCores:   32,
+				CPUModel:   "AMD 5950X",
+			},
+			want: "1x32 [AMD 5950X]",
+		},
+		{
+			health: models.HostHealth{
+				CPUSockets: 2,
+				CPUCores:   64,
+				CPUModel:   "AMD EPYC 7763",
+			},
+			want: "2x64 [AMD EPYC 7763]",
+		},
+		{
+			health: models.HostHealth{
+				CPUSockets: 0,
+				CPUCores:   8,
+				CPUModel:   "",
+			},
+			want: "1x8 [CPU]",
+		},
+		{
+			health: models.HostHealth{
+				CPUSockets:    1,
+				CPUCores:      0,
+				CPUCoresUsage: []float64{10.0, 20.0, 30.0, 40.0},
+				CPUModel:      "Intel i7-12700K",
+			},
+			want: "1x4 [Intel i7-12700K]",
+		},
+	}
+
+	for _, tc := range tests {
+		got := tc.health.CPULabel()
+		if got != tc.want {
+			t.Errorf("CPULabel() = %q; want %q", got, tc.want)
+		}
+	}
+}
+
+func TestParseProcStat_Deltas(t *testing.T) {
+	mon := NewMonitor(&config.Config{}, nil)
+	server := "srv-1"
+
+	// First sample
+	sample1 := `cpu  1000 0 1000 8000 0 0 0 0 0 0
+cpu0 500 0 500 4000 0 0 0 0 0 0
+cpu1 500 0 500 4000 0 0 0 0 0 0`
+
+	usages1 := mon.parseProcStat(server, sample1)
+	if len(usages1) != 2 {
+		t.Fatalf("expected 2 cores in usages1, got %d", len(usages1))
+	}
+	// Initial boot usage: (500+500)/(500+500+4000) = 1000/5000 = 20%
+	if usages1[0] < 19.9 || usages1[0] > 20.1 {
+		t.Errorf("expected ~20%% usage on core 0, got %.2f%%", usages1[0])
+	}
+
+	// Second sample with delta:
+	// core 0: busy increases by 50, idle increases by 50 -> 50%
+	// core 1: busy increases by 10, idle increases by 90 -> 10%
+	sample2 := `cpu  1060 0 1060 8140 0 0 0 0 0 0
+cpu0 525 0 525 4050 0 0 0 0 0 0
+cpu1 505 0 505 4090 0 0 0 0 0 0`
+
+	usages2 := mon.parseProcStat(server, sample2)
+	if len(usages2) != 2 {
+		t.Fatalf("expected 2 cores in usages2, got %d", len(usages2))
+	}
+	if usages2[0] < 49.9 || usages2[0] > 50.1 {
+		t.Errorf("expected ~50%% usage on core 0, got %.2f%%", usages2[0])
+	}
+	if usages2[1] < 9.9 || usages2[1] > 10.1 {
+		t.Errorf("expected ~10%% usage on core 1, got %.2f%%", usages2[1])
+	}
+}

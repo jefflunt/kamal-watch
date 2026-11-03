@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type ContainerState string
 
@@ -79,25 +82,47 @@ type KamalApp struct {
 }
 
 type HostHealth struct {
-	Uptime             string   `json:"uptime"`
-	LoadAvg            string   `json:"load_avg"`
-	CPUUsagePerc       float64  `json:"cpu_usage_perc"`
-	CPUCores           int      `json:"cpu_cores"`
-	DiskUsage          string   `json:"disk_usage"`
-	MemTotal           string   `json:"mem_total"`
-	MemUsed            string   `json:"mem_used"`
-	MemAvailable       string   `json:"mem_available"`
-	MemUsedPerc        float64  `json:"mem_used_perc"`
-	SwapTotal          string   `json:"swap_total"`
-	SwapUsed           string   `json:"swap_used"`
-	SwapUsedPerc       float64  `json:"swap_used_perc"`
-	TasksSummary       string   `json:"tasks_summary"`
-	DockerActive       bool     `json:"docker_active"`
-	RebootRequired     bool     `json:"reboot_required"`
-	RebootRequiredPkgs []string `json:"reboot_required_pkgs,omitempty"`
-	UpdatesAvailable   int      `json:"updates_available"`
-	SecurityUpdates    int      `json:"security_updates"`
-	UpdatesSummary     string   `json:"updates_summary,omitempty"`
+	Uptime             string    `json:"uptime"`
+	LoadAvg            string    `json:"load_avg"`
+	CPUUsagePerc       float64   `json:"cpu_usage_perc"`
+	CPUCores           int       `json:"cpu_cores"`
+	CPUSockets         int       `json:"cpu_sockets,omitempty"`
+	CPUModel           string    `json:"cpu_model,omitempty"`
+	CPUCoresUsage      []float64 `json:"cpu_cores_usage,omitempty"`
+	DiskUsage          string    `json:"disk_usage"`
+	MemTotal           string    `json:"mem_total"`
+	MemUsed            string    `json:"mem_used"`
+	MemAvailable       string    `json:"mem_available"`
+	MemUsedPerc        float64   `json:"mem_used_perc"`
+	SwapTotal          string    `json:"swap_total"`
+	SwapUsed           string    `json:"swap_used"`
+	SwapUsedPerc       float64   `json:"swap_used_perc"`
+	TasksSummary       string    `json:"tasks_summary"`
+	DockerActive       bool      `json:"docker_active"`
+	RebootRequired     bool      `json:"reboot_required"`
+	RebootRequiredPkgs []string  `json:"reboot_required_pkgs,omitempty"`
+	UpdatesAvailable   int       `json:"updates_available"`
+	SecurityUpdates    int       `json:"security_updates"`
+	UpdatesSummary     string    `json:"updates_summary,omitempty"`
+}
+
+func (h HostHealth) CPULabel() string {
+	sockets := h.CPUSockets
+	if sockets <= 0 {
+		sockets = 1
+	}
+	cores := h.CPUCores
+	if cores <= 0 {
+		cores = len(h.CPUCoresUsage)
+	}
+	model := h.CPUModel
+	if model == "" {
+		model = "CPU"
+	}
+	if cores > 0 {
+		return fmt.Sprintf("%dx%d [%s]", sockets, cores, model)
+	}
+	return fmt.Sprintf("[%s]", model)
 }
 
 type ServerInventory struct {

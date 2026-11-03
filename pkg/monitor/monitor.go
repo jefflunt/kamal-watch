@@ -17,10 +17,11 @@ import (
 )
 
 type Monitor struct {
-	pool        *remote.SSHPool
-	cfg         *config.Config
-	inventories sync.Map // map[string]*models.ServerInventory
-	listeners   sync.Map // map[chan struct{}]struct{}
+	pool         *remote.SSHPool
+	cfg          *config.Config
+	inventories  sync.Map // map[string]*models.ServerInventory
+	listeners    sync.Map // map[chan struct{}]struct{}
+	prevCPUTicks sync.Map // map[string]map[int]cpuTicks
 }
 
 func NewMonitor(cfg *config.Config, pool *remote.SSHPool) *Monitor {
@@ -142,7 +143,7 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 		Apps:       make(map[string]*models.KamalApp),
 	}
 
-	batchScript := `echo "___SECTION:SYS___" && uptime && nproc && echo "___SECTION:TOP___" && (top -bn1 | head -n 5 2>/dev/null || true) && echo "___SECTION:DISK___" && df -h / && echo "___SECTION:MEM___" && free -h && echo "___SECTION:HOST_UPDATES___" && (if [ -f /run/reboot-required ] || [ -f /var/run/reboot-required ]; then echo "REBOOT_REQUIRED:1"; elif command -v needs-restarting >/dev/null 2>&1; then if needs-restarting -r >/dev/null 2>&1; then echo "REBOOT_REQUIRED:0"; else echo "REBOOT_REQUIRED:1"; fi; else echo "REBOOT_REQUIRED:0"; fi; echo "REBOOT_PKGS_START"; cat /run/reboot-required.pkgs /var/run/reboot-required.pkgs 2>/dev/null | sort -u || true; echo "REBOOT_PKGS_END"; echo "UPDATES_START"; if [ -f /var/lib/update-notifier/updates-available ]; then cat /var/lib/update-notifier/updates-available 2>/dev/null || true; elif [ -f /var/run/motd.dynamic ]; then cat /var/run/motd.dynamic 2>/dev/null || true; fi; echo "UPDATES_END") && echo "___SECTION:STATS___" && (docker stats --no-stream --format '{{json .}}' 2>/dev/null || true) && echo "___SECTION:DOCKER___" && docker ps -a --format '{{json .}}' && echo "___SECTION:PROXY___" && (docker exec kamal-proxy kamal-proxy list 2>/dev/null || true) && echo "___SECTION:AUDIT___" && head -n 30 "$HOME"/.kamal/*-audit.log 2>/dev/null || true`
+	batchScript := `echo "___SECTION:SYS___" && uptime && nproc && echo "___SECTION:CPU___" && (grep -m1 -E '^(model name|Model)\s*:' /proc/cpuinfo 2>/dev/null || true) && echo "SOCKETS:$(grep 'physical id' /proc/cpuinfo 2>/dev/null | sort -u | wc -l)" && echo "___SECTION:PROC_STAT___" && (grep '^cpu[0-9]' /proc/stat 2>/dev/null || true) && echo "___SECTION:TOP___" && (top -bn1 | head -n 5 2>/dev/null || true) && echo "___SECTION:DISK___" && df -h / && echo "___SECTION:MEM___" && free -h && echo "___SECTION:HOST_UPDATES___" && (if [ -f /run/reboot-required ] || [ -f /var/run/reboot-required ]; then echo "REBOOT_REQUIRED:1"; elif command -v needs-restarting >/dev/null 2>&1; then if needs-restarting -r >/dev/null 2>&1; then echo "REBOOT_REQUIRED:0"; else echo "REBOOT_REQUIRED:1"; fi; else echo "REBOOT_REQUIRED:0"; fi; echo "REBOOT_PKGS_START"; cat /run/reboot-required.pkgs /var/run/reboot-required.pkgs 2>/dev/null | sort -u || true; echo "REBOOT_PKGS_END"; echo "UPDATES_START"; if [ -f /var/lib/update-notifier/updates-available ]; then cat /var/lib/update-notifier/updates-available 2>/dev/null || true; elif [ -f /var/run/motd.dynamic ]; then cat /var/run/motd.dynamic 2>/dev/null || true; fi; echo "UPDATES_END") && echo "___SECTION:STATS___" && (docker stats --no-stream --format '{{json .}}' 2>/dev/null || true) && echo "___SECTION:DOCKER___" && docker ps -a --format '{{json .}}' && echo "___SECTION:PROXY___" && (docker exec kamal-proxy kamal-proxy list 2>/dev/null || true) && echo "___SECTION:AUDIT___" && head -n 30 "$HOME"/.kamal/*-audit.log 2>/dev/null || true`
 
 	out, err := m.pool.RunCommand(ctx, srv.Name, batchScript)
 	if err != nil {
@@ -185,6 +186,32 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 			if cores, err := strconv.Atoi(strings.TrimSpace(lines[1])); err == nil {
 				inv.Health.CPUCores = cores
 			}
+		}
+	}
+
+	// Parse CPU info (Model, Sockets)
+	if cpuOut, ok := sectionMap["CPU"]; ok {
+		for _, line := range strings.Split(cpuOut, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "SOCKETS:") {
+				val := strings.TrimSpace(strings.TrimPrefix(line, "SOCKETS:"))
+				if s, err := strconv.Atoi(val); err == nil && s > 0 {
+					inv.Health.CPUSockets = s
+				}
+			} else if strings.HasPrefix(line, "model name") || strings.HasPrefix(line, "Model") {
+				inv.Health.CPUModel = CleanCPUModel(line)
+			}
+		}
+	}
+	if inv.Health.CPUSockets <= 0 {
+		inv.Health.CPUSockets = 1
+	}
+
+	// Parse Per-Core CPU Usage
+	if statOut, ok := sectionMap["PROC_STAT"]; ok {
+		inv.Health.CPUCoresUsage = m.parseProcStat(srv.Name, statOut)
+		if inv.Health.CPUCores <= 0 && len(inv.Health.CPUCoresUsage) > 0 {
+			inv.Health.CPUCores = len(inv.Health.CPUCoresUsage)
 		}
 	}
 
@@ -685,4 +712,147 @@ func formatBytes(b int64) string {
 	default:
 		return fmt.Sprintf("%dB", b)
 	}
+}
+
+type cpuTicks struct {
+	idle  uint64
+	total uint64
+}
+
+var (
+	cpuFreqRegex      = regexp.MustCompile(`(?i)\s*@\s*[0-9.]+\s*[mgt]hz\b`)
+	cpuParenRegex     = regexp.MustCompile(`\([rR]\)|\([tT][mM]\)`)
+	cpuCoreCountRegex = regexp.MustCompile(`(?i)\b\d+-Core Processor\b|\b\d+-Core\b`)
+	cpuProcRegex      = regexp.MustCompile(`(?i)\b(Processor|CPU)\b`)
+	cpuRyzenTierRegex = regexp.MustCompile(`(?i)\bRyzen\s+[3579]\b`)
+	cpuIntelCoreRegex = regexp.MustCompile(`(?i)\bCore\s+(i[3579]|vPro)\b`)
+	cpuMultipleSpaces = regexp.MustCompile(`\s+`)
+)
+
+func CleanCPUModel(raw string) string {
+	s := strings.TrimSpace(raw)
+	if idx := strings.Index(s, ":"); idx != -1 {
+		s = strings.TrimSpace(s[idx+1:])
+	}
+	s = cpuFreqRegex.ReplaceAllString(s, "")
+	s = cpuParenRegex.ReplaceAllString(s, "")
+	s = cpuCoreCountRegex.ReplaceAllString(s, "")
+	s = cpuProcRegex.ReplaceAllString(s, "")
+	s = cpuRyzenTierRegex.ReplaceAllString(s, "")
+	s = cpuIntelCoreRegex.ReplaceAllString(s, "$1")
+	s = regexp.MustCompile(`(?i)\b(Ryzen|Core)\b`).ReplaceAllString(s, "")
+	s = cpuMultipleSpaces.ReplaceAllString(s, " ")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "CPU"
+	}
+	return s
+}
+
+func (m *Monitor) parseProcStat(serverName, statOut string) []float64 {
+	lines := strings.Split(statOut, "\n")
+	type coreStat struct {
+		index int
+		ticks cpuTicks
+	}
+	var samples []coreStat
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "cpu") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 5 || fields[0] == "cpu" {
+			// Skip aggregate "cpu" line
+			continue
+		}
+		coreIdxStr := strings.TrimPrefix(fields[0], "cpu")
+		coreIdx, err := strconv.Atoi(coreIdxStr)
+		if err != nil {
+			continue
+		}
+
+		var nums []uint64
+		for _, f := range fields[1:] {
+			v, _ := strconv.ParseUint(f, 10, 64)
+			nums = append(nums, v)
+		}
+		if len(nums) < 4 {
+			continue
+		}
+		user := nums[0]
+		nice := nums[1]
+		system := nums[2]
+		idle := nums[3]
+		var iowait, irq, softirq, steal uint64
+		if len(nums) > 4 {
+			iowait = nums[4]
+		}
+		if len(nums) > 5 {
+			irq = nums[5]
+		}
+		if len(nums) > 6 {
+			softirq = nums[6]
+		}
+		if len(nums) > 7 {
+			steal = nums[7]
+		}
+
+		idleTicks := idle + iowait
+		nonIdle := user + nice + system + irq + softirq + steal
+		totalTicks := idleTicks + nonIdle
+
+		samples = append(samples, coreStat{
+			index: coreIdx,
+			ticks: cpuTicks{idle: idleTicks, total: totalTicks},
+		})
+	}
+
+	if len(samples) == 0 {
+		return nil
+	}
+
+	maxIdx := -1
+	for _, s := range samples {
+		if s.index > maxIdx {
+			maxIdx = s.index
+		}
+	}
+	usages := make([]float64, maxIdx+1)
+
+	var prevMap map[int]cpuTicks
+	if val, ok := m.prevCPUTicks.Load(serverName); ok {
+		prevMap = val.(map[int]cpuTicks)
+	}
+	nextMap := make(map[int]cpuTicks)
+
+	for _, s := range samples {
+		nextMap[s.index] = s.ticks
+		if prev, ok := prevMap[s.index]; ok && s.ticks.total > prev.total {
+			deltaTotal := s.ticks.total - prev.total
+			deltaIdle := s.ticks.idle - prev.idle
+			if deltaTotal > 0 && deltaTotal >= deltaIdle {
+				usage := float64(deltaTotal-deltaIdle) / float64(deltaTotal) * 100.0
+				if usage < 0 {
+					usage = 0
+				} else if usage > 100 {
+					usage = 100
+				}
+				usages[s.index] = usage
+			}
+		} else if s.ticks.total > 0 {
+			busy := s.ticks.total - s.ticks.idle
+			usage := float64(busy) / float64(s.ticks.total) * 100.0
+			if usage < 0 {
+				usage = 0
+			} else if usage > 100 {
+				usage = 100
+			}
+			usages[s.index] = usage
+		}
+	}
+
+	m.prevCPUTicks.Store(serverName, nextMap)
+	return usages
 }

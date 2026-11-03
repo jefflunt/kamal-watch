@@ -5,8 +5,7 @@
       <div class="p-3 bg-[#0d1117] border-b border-[#30363d]">
         <div class="flex flex-wrap items-center justify-between pb-2 mb-2 border-b border-[#21262d] text-xs">
           <div class="flex items-center gap-2 font-mono">
-            <span class="text-[#58a6ff] font-bold text-sm">SERVER: {{ $srv.ServerName }}</span>
-            <span class="text-[#8b949e]">({{ $srv.Host }})</span>
+            <span class="text-[#58a6ff] font-bold text-sm">{{ $srv.ServerName }}@{{ $srv.Host }}</span>
             {{ if $srv.Online }}
               <span class="bg-[#238636]/20 border border-[#238636] text-[#7ee787] px-1.5 py-0.2 rounded text-[10px]">ONLINE</span>
               {{ if $srv.Health.RebootRequired }}
@@ -32,15 +31,38 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 font-mono text-[11px]">
           <!-- Left Column: CPU & Cores & Disk -->
           <div class="space-y-1.5">
-            <!-- CPU Meter -->
+            <!-- CPU Meter (Click label to toggle Unified vs Per-Core view for all servers) -->
             <div>
               <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
-                <span class="text-[#58a6ff] font-semibold">1 [CPU Total: {{ $srv.Health.CPUCores }} Cores]</span>
+                <button type="button" onclick="toggleCpuView()" class="text-[#58a6ff] hover:text-white font-semibold cursor-pointer text-left transition-colors" title="Click to toggle unified / per-core CPU meter view">
+                  {{ $srv.Health.CPULabel }}
+                </button>
                 <span class="text-[#c9d1d9]">{{ printf "%.1f" $srv.Health.CPUUsagePerc }}%</span>
               </div>
-              <div class="meter-bar rounded-sm">
+
+              <!-- Unified CPU Meter Bar -->
+              <div class="cpu-unified meter-bar rounded-sm">
                 <div class="meter-fill-cpu h-full" style="width: {{ printf "%.1f" $srv.Health.CPUUsagePerc }}%;"></div>
               </div>
+
+              <!-- Per-Core CPU Meter Bars -->
+              {{ if $srv.Health.CPUCoresUsage }}
+                <div class="cpu-per-core grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-0.5 my-1">
+                  {{ range $idx, $usage := $srv.Health.CPUCoresUsage }}
+                    <div class="flex items-center gap-1.5 text-[10px]">
+                      <span class="w-4 text-right text-[#58a6ff] font-semibold shrink-0">{{ add $idx 1 }}</span>
+                      <div class="meter-bar rounded-sm flex-1 h-2">
+                        <div class="meter-fill-cpu h-full" style="width: {{ printf "%.1f" $usage }}%;"></div>
+                      </div>
+                      <span class="w-8 text-right text-[#c9d1d9] text-[9px] shrink-0">{{ printf "%.0f" $usage }}%</span>
+                    </div>
+                  {{ end }}
+                </div>
+              {{ else }}
+                <div class="cpu-per-core meter-bar rounded-sm">
+                  <div class="meter-fill-cpu h-full" style="width: {{ printf "%.1f" $srv.Health.CPUUsagePerc }}%;"></div>
+                </div>
+              {{ end }}
             </div>
 
             <!-- Root Disk Meter -->
@@ -129,7 +151,7 @@
               </td>
               <td class="py-2 px-3 text-white flex items-center gap-2">
                 <a href="/server/{{ $srv.ServerName }}/app/{{ $appName }}" onclick="event.stopPropagation()" class="text-[#58a6ff] hover:underline font-bold text-[13px] flex items-center gap-1.5">
-                  <span class="text-[#8b949e] font-normal">[service]</span> {{ $appName }}
+                  {{ $appName }}
                 </a>
                 {{ if $app.ProxyRoute }}
                   <span class="text-[#7ee787] text-[10px] bg-[#238636]/20 px-1 py-0.2 rounded border border-[#238636]/50">

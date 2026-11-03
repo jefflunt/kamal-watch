@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-03
+
+### Added
+- Per-core CPU utilization meters displaying individual core percentage bars arranged in a responsive multi-column grid, calculated from `/proc/stat` deltas during SSH polling cycles.
+- Interactive CPU view toggle: clicking the CPU core count / model number label toggles between the unified CPU meter and the per-core meters across all servers, with view preference persisted in `localStorage`.
+- Automatic CPU model detection and sanitization from `/proc/cpuinfo` (e.g. `AMD 5950X`, `Intel Xeon Gold 6248R`).
+
+### Changed
+- Server header labels now render as `<server-name>@<host>` (e.g., `compute-01@192.168.0.31`) removing the previous `SERVER:` prefix.
+- CPU meter headers now format as `<sockets>x<cores> [<model>]` (e.g., `1x32 [AMD 5950X]`) instead of `1 [CPU Total: 32 Cores]`.
+- Logical service rows now display the direct service name without the redundant `[service]` prefix.
+
 ## [0.6.1] - 2026-11-02
 
 ### Fixed
