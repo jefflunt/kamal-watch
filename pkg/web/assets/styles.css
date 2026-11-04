@@ -31,7 +31,11 @@ input::placeholder{opacity:1;color:#6e7681}
 .h-4{height:1rem}
 .h-5{height:1.25rem}
 .h-full{height:100%}
+.min-h-0{min-height:0px}
 .min-h-full{min-height:100%}
+.max-h-60{max-height:15rem}
+.max-h-\[55vh\]{max-height:55vh}
+.max-h-\[85vh\]{max-height:85vh}
 .w-2{width:0.5rem}
 .w-4{width:1rem}
 .w-5{width:1.25rem}
@@ -87,6 +91,8 @@ input::placeholder{opacity:1;color:#6e7681}
 .rounded{border-radius:0.25rem}
 .rounded-sm{border-radius:0.125rem}
 .rounded-md{border-radius:0.375rem}
+.rounded-t-md{border-top-left-radius:0.375rem;border-top-right-radius:0.375rem}
+.rounded-b-md{border-bottom-left-radius:0.375rem;border-bottom-right-radius:0.375rem}
 .rounded-full{border-radius:9999px}
 .border{border-width:1px}
 .border-0{border-width:0px}
@@ -183,6 +189,8 @@ input::placeholder{opacity:1;color:#6e7681}
 .hover\:text-white:hover{color:#ffffff}
 .hover\:underline:hover{text-decoration-line:underline}
 .focus\:ring-0:focus{outline:none;box-shadow:none}
+.focus-within\:border-\[\#58a6ff\]:focus-within{border-color:#58a6ff}
+.accent-\[\#238636\]{accent-color:#238636}
 .group:hover .group-hover\:scale-105{transform:scale(1.05)}
 @keyframes pulse{50%{opacity:.5}}
 .animate-pulse{animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite}

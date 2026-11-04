@@ -643,3 +643,43 @@ func TestHandleRunCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandModalTemplateStructure(t *testing.T) {
+	srv, err := NewServer(config.DefaultConfig(), nil, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&buf, "command_modal.html", nil); err != nil {
+		t.Fatalf("failed to execute command_modal.html: %v", err)
+	}
+	html := buf.String()
+
+	checks := []struct {
+		desc     string
+		expected string
+	}{
+		{"modal root", `id="cmd-modal"`},
+		{"viewport height constraint", `max-h-[85vh]`},
+		{"header dividing border", `border-b border-[#30363d]`},
+		{"host placeholder", `id="cmd-modal-host"`},
+		{"command input label", `Command`},
+		{"command input element", `id="cmd-modal-input"`},
+		{"output section container", `id="cmd-modal-output-section"`},
+		{"output status badge", `id="cmd-modal-status-badge"`},
+		{"auto-scroll toggle", `id="cmd-modal-autoscroll"`},
+		{"clear output button", `clearCmdOutput()`},
+		{"scrollable output box", `id="cmd-modal-output-box"`},
+		{"scrollable output vertical overflow", `overflow-y-auto`},
+		{"output height constraint", `max-h-[55vh]`},
+		{"footer action bar", `id="cmd-modal-cancel-btn"`},
+		{"action submit button", `id="cmd-modal-yes-btn"`},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(html, c.expected) {
+			t.Errorf("expected command_modal.html to contain %q (%s)", c.expected, c.desc)
+		}
+	}
+}

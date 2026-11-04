@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-11-04
+
+### Changed
+- Enhanced command execution modal with structured sections and clear visual dividing borders between modal header, command input area, command output box, and modal action footer.
+
+### Fixed
+- Fixed command output container overflow by constraining the modal card within the viewport (`max-h-[85vh]`) and making the output box vertically scrollable (`overflow-y-auto`, `max-h-[55vh]`).
+- Added output auto-scroll capability with an interactive toggle checkbox and automatic bottom scrolling during command execution, along with a Clear output button.
+
 ## [0.8.1] - 2026-11-04
 
 ### Fixed
