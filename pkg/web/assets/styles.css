@@ -57,6 +57,7 @@ input::placeholder{opacity:1;color:#6e7681}
 .flex-col{flex-direction:column}
 .flex-wrap{flex-wrap:wrap}
 .items-center{align-items:center}
+.justify-center{justify-content:center}
 .justify-end{justify-content:flex-end}
 .justify-between{justify-content:space-between}
 .gap-1{gap:0.25rem}

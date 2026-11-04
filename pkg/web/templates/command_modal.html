@@ -1,6 +1,6 @@
 <!-- Screen Takeover Command Modal -->
-<div id="cmd-modal" onclick="if(event.target === this) closeCmdModal()" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
-  <div class="w-full max-w-2xl bg-[#161b22] border border-[#30363d] rounded-lg shadow-2xl p-5 flex flex-col space-y-4">
+<div id="cmd-modal" onclick="if(event.target === this) closeCmdModal()" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" style="justify-content:center;box-sizing:border-box;">
+  <div class="bg-[#161b22] border border-[#30363d] rounded-md shadow-2xl p-5 flex flex-col space-y-4" style="width:95%;max-width:1200px;box-sizing:border-box;margin:auto;">
     <div>
       <h3 class="text-white font-mono font-bold text-sm sm:text-base">
         Run the following command on <span id="cmd-modal-host" class="text-[#58a6ff]"></span>?
@@ -8,7 +8,7 @@
     </div>
 
     <div>
-      <input type="text" id="cmd-modal-input" placeholder="e.g. sudo apt-get update && sudo apt-get dist-upgrade" class="w-full min-w-[40ch] bg-[#0d1117] border border-[#30363d] focus:border-[#58a6ff] focus:ring-1 focus:ring-[#58a6ff] rounded px-3 py-2 text-white font-mono text-xs placeholder-[#6e7681] outline-none" spellcheck="false" autocomplete="off" oninput="handleCmdModalInput(this.value)">
+      <input type="text" id="cmd-modal-input" placeholder="e.g. sudo apt-get update && sudo apt-get dist-upgrade" class="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#58a6ff] focus:ring-1 focus:ring-[#58a6ff] rounded px-3 py-2 text-white font-mono text-xs placeholder-[#6e7681] outline-none" style="min-width:40ch;box-sizing:border-box;" spellcheck="false" autocomplete="off" oninput="handleCmdModalInput(this.value)">
     </div>
 
     <!-- Output Box (hidden initially) -->

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-11-04
+
+### Fixed
+- Constrained command confirmation modal to a maximum 95% viewport width with a 1200px max-width, eliminating horizontal bleed and improving screen takeover layout on wide viewports.
+- Added `.justify-center` utility to embedded stylesheet.
+
 ## [0.8.0] - 2026-11-04
 
 ### Added
