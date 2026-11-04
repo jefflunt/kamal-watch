@@ -3,6 +3,7 @@ bin/
 .DS_Store
 
 # Local runtime & Kamal deployment configs, secrets, and keys
+cmd/deploy
 *kamal-watch*.yml
 !kamal-watch.example.yml
 .kamal/
