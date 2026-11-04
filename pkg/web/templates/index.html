@@ -41,6 +41,8 @@
 {{ template "servers_partial.html" . }}
   </main>
 
+  {{ template "command_modal.html" . }}
+
   <!-- Interactive Slide-over / Modal Log Streamer (HTOP Console Style) -->
   <div id="log-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex justify-end transition-opacity">
     <div class="w-full max-w-5xl bg-[#0c1017] border-l border-[#30363d] flex flex-col h-full shadow-2xl">

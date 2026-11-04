@@ -39,6 +39,7 @@ type Server struct {
 	streamSems           map[string]chan struct{}
 	maxConcurrentStreams int
 	streamFunc           func(ctx context.Context, serverName, cmd string, out io.Writer) error
+	runCmdFunc           func(ctx context.Context, serverName, cmd string) ([]byte, error)
 }
 
 func NewServer(cfg *config.Config, mon *monitor.Monitor, pool *remote.SSHPool) (*Server, error) {
@@ -113,6 +114,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /server/{name}", s.handleServerView)
 	mux.HandleFunc("GET /server/{name}/app/{app}", s.handleAppDetail)
 	mux.HandleFunc("GET /api/inventory", s.handleAPIInventory)
+	mux.HandleFunc("POST /api/server/{name}/run", s.handleRunCommand)
 	mux.HandleFunc("GET /events", s.handleSSEUpdates)
 	mux.HandleFunc("GET /logs/stream", s.handleLogStream)
 
@@ -318,6 +320,82 @@ func (s *Server) handleAPIInventory(w http.ResponseWriter, r *http.Request) {
 	inventories := s.monitor.GetAllInventories()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(inventories)
+}
+
+type RunCommandRequest struct {
+	Command string `json:"command"`
+}
+
+type RunCommandResponse struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (s *Server) handleRunCommand(w http.ResponseWriter, r *http.Request) {
+	serverName := r.PathValue("name")
+	if serverName == "" {
+		http.Error(w, "Missing server name", http.StatusBadRequest)
+		return
+	}
+
+	serverKnown := false
+	if s.cfg != nil {
+		for _, srv := range s.cfg.Servers {
+			if srv.Name == serverName {
+				serverKnown = true
+				break
+			}
+		}
+	}
+	if !serverKnown && s.monitor != nil {
+		if _, ok := s.monitor.GetInventory(serverName); ok {
+			serverKnown = true
+		}
+	}
+	if !serverKnown {
+		http.Error(w, "Server not found", http.StatusNotFound)
+		return
+	}
+
+	var req RunCommandRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+
+	cmd := strings.TrimSpace(req.Command)
+	if cmd == "" {
+		http.Error(w, "Command cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if s.pool == nil && s.runCmdFunc == nil {
+		http.Error(w, "SSH pool unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+
+	var out []byte
+	var runErr error
+	if s.runCmdFunc != nil {
+		out, runErr = s.runCmdFunc(ctx, serverName, cmd)
+	} else {
+		out, runErr = s.pool.RunCommand(ctx, serverName, cmd)
+	}
+
+	resp := RunCommandResponse{
+		Success: runErr == nil,
+		Output:  string(out),
+	}
+	if runErr != nil {
+		resp.Error = runErr.Error()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (s *Server) handleSSEUpdates(w http.ResponseWriter, r *http.Request) {

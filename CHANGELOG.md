@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-11-04
+
+### Added
+- Interactive command execution modal for host maintenance badges: clicking the update or reboot badge opens a screen takeover confirmation modal (`Run the following command on <hostname>?`).
+- Per-host command persistence in `localStorage`, auto-saving command inputs on every keystroke.
+- Backend API endpoint `POST /api/server/{name}/run` to execute maintenance and diagnostic commands over SSH and return stdout/stderr results and status.
+
+### Changed
+- Streamlined update badge text to `<n> updates`.
+- Streamlined reboot badge text to `reboot`.
+
 ## [0.7.2] - 2026-11-03
 
 ### Fixed

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -387,14 +388,20 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 		t.Fatalf("execute servers_partial.html: %v", err)
 	}
 	partialHTML := partialBuf.String()
-	if !strings.Contains(partialHTML, "⟳ Reboot Required") {
-		t.Errorf("expected servers_partial.html to contain '⟳ Reboot Required', got: %s", partialHTML)
+	if !strings.Contains(partialHTML, ">reboot</button>") {
+		t.Errorf("expected servers_partial.html to contain '>reboot</button>', got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'reboot')") {
+		t.Errorf("expected servers_partial.html to call openCommandModal for reboot, got: %s", partialHTML)
 	}
 	if !strings.Contains(partialHTML, "linux-image-generic, libc6") {
 		t.Errorf("expected servers_partial.html tooltip to list reboot packages, got: %s", partialHTML)
 	}
-	if !strings.Contains(partialHTML, "Updates: 5 (1 sec)") {
-		t.Errorf("expected servers_partial.html to contain 'Updates: 5 (1 sec)', got: %s", partialHTML)
+	if !strings.Contains(partialHTML, ">5 updates</button>") {
+		t.Errorf("expected servers_partial.html to contain '>5 updates</button>', got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'update')") {
+		t.Errorf("expected servers_partial.html to call openCommandModal for update, got: %s", partialHTML)
 	}
 
 	var serverBuf strings.Builder
@@ -402,11 +409,20 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 		t.Fatalf("execute server.html: %v", err)
 	}
 	serverHTML := serverBuf.String()
-	if !strings.Contains(serverHTML, "⟳ Reboot Required") {
-		t.Errorf("expected server.html to contain '⟳ Reboot Required', got: %s", serverHTML)
+	if !strings.Contains(serverHTML, ">reboot</button>") {
+		t.Errorf("expected server.html to contain '>reboot</button>', got: %s", serverHTML)
 	}
-	if !strings.Contains(serverHTML, "Updates: 5 (1 sec)") {
-		t.Errorf("expected server.html to contain 'Updates: 5 (1 sec)', got: %s", serverHTML)
+	if !strings.Contains(serverHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'reboot')") {
+		t.Errorf("expected server.html to call openCommandModal for reboot, got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, ">5 updates</button>") {
+		t.Errorf("expected server.html to contain '>5 updates</button>', got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'update')") {
+		t.Errorf("expected server.html to call openCommandModal for update, got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, "Run the following command on") {
+		t.Errorf("expected server.html to include command takeover modal, got: %s", serverHTML)
 	}
 }
 
@@ -514,5 +530,116 @@ func TestTemplatesRenderEnhancedLabelsAndCPUMeters(t *testing.T) {
 	}
 	if !strings.Contains(html, `style="width: 20.0%;"`) {
 		t.Errorf("expected disk meter to have style width 20.0%%")
+	}
+}
+
+func TestHandleRunCommand(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Servers = []config.ServerConfig{
+		{Name: "app-node-01", Host: "10.0.0.10"},
+	}
+	mon := monitor.NewMonitor(cfg, nil)
+	srv, err := NewServer(cfg, mon, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	routes := srv.Routes()
+
+	// 1. Unknown server -> 404
+	{
+		body := `{"command": "sudo reboot"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/unknown-node/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("expected 404 for unknown server, got %d", w.Code)
+		}
+	}
+
+	// 2. Empty command -> 400
+	{
+		body := `{"command": "   "}`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/app-node-01/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for empty command, got %d", w.Code)
+		}
+	}
+
+	// 3. Invalid JSON body -> 400
+	{
+		body := `not-json`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/app-node-01/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for invalid json, got %d", w.Code)
+		}
+	}
+
+	// 4. SSH pool unavailable (pool is nil and runCmdFunc is nil) -> 503
+	{
+		body := `{"command": "sudo apt-get update"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/app-node-01/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Errorf("expected 503 when pool unavailable, got %d", w.Code)
+		}
+	}
+
+	// 5. Successful command execution via runCmdFunc mock -> 200, success: true
+	{
+		srv.runCmdFunc = func(ctx context.Context, serverName, cmd string) ([]byte, error) {
+			if serverName != "app-node-01" {
+				t.Errorf("expected serverName app-node-01, got %s", serverName)
+			}
+			if cmd != "sudo apt-get update && sudo apt-get dist-upgrade" {
+				t.Errorf("unexpected command: %s", cmd)
+			}
+			return []byte("All packages up to date.\n"), nil
+		}
+
+		body := `{"command": "sudo apt-get update && sudo apt-get dist-upgrade"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/app-node-01/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d (body: %s)", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), `"success":true`) {
+			t.Errorf("expected success:true in response, got %s", w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "All packages up to date.") {
+			t.Errorf("expected output in response, got %s", w.Body.String())
+		}
+	}
+
+	// 6. Command failure or connection termination -> 200 with success: false and error
+	{
+		srv.runCmdFunc = func(ctx context.Context, serverName, cmd string) ([]byte, error) {
+			return []byte("Broadcast message from root: system is going down for reboot NOW!"), fmt.Errorf("connection reset by peer")
+		}
+
+		body := `{"command": "sudo reboot"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/server/app-node-01/run", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", w.Code)
+		}
+		if !strings.Contains(w.Body.String(), `"success":false`) {
+			t.Errorf("expected success:false in response, got %s", w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "connection reset by peer") {
+			t.Errorf("expected error message in response, got %s", w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "going down for reboot") {
+			t.Errorf("expected command output in response, got %s", w.Body.String())
+		}
 	}
 }
