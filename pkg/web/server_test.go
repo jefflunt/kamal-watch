@@ -421,11 +421,21 @@ func TestTemplatesRenderEnhancedLabelsAndCPUMeters(t *testing.T) {
 		Host:       "192.168.0.31",
 		Online:     true,
 		Health: models.HostHealth{
+			Uptime:        "03:51:14 up 8 min, 0 users, load average: 0.00, 0.15, 0.15",
 			CPUSockets:    1,
 			CPUCores:      32,
 			CPUModel:      "AMD 5950X",
 			CPUUsagePerc:  14.5,
 			CPUCoresUsage: []float64{12.0, 15.0, 5.0, 30.0},
+			MemUsed:       "16.0Gi",
+			MemTotal:      "32.0Gi",
+			MemAvailable:  "16.0Gi",
+			MemUsedPerc:   50.0,
+			SwapUsed:      "1.0Gi",
+			SwapTotal:     "4.0Gi",
+			SwapUsedPerc:  25.0,
+			DiskUsage:     "20G/100G (20%)",
+			DiskUsedPerc:  20.0,
 		},
 		Apps: map[string]*models.KamalApp{
 			"my-service": {
@@ -477,5 +487,32 @@ func TestTemplatesRenderEnhancedLabelsAndCPUMeters(t *testing.T) {
 	}
 	if !strings.Contains(html, "cpu-per-core") {
 		t.Errorf("expected .cpu-per-core container in html")
+	}
+
+	// 5. Check memory label: "16.0Gi / 32.0Gi" without "(Avail:"
+	if !strings.Contains(html, "16.0Gi / 32.0Gi") {
+		t.Errorf("expected '16.0Gi / 32.0Gi' in html, got: %s", html)
+	}
+	if strings.Contains(html, "(Avail:") {
+		t.Errorf("expected '(Avail:' to be removed from memory label")
+	}
+
+	// 6. Check uptime header: contains Uptime without redundant "Load average:" span
+	if !strings.Contains(html, "03:51:14 up 8 min, 0 users, load average: 0.00, 0.15, 0.15") {
+		t.Errorf("expected uptime text in html")
+	}
+	if strings.Contains(html, "<span>Load average:") {
+		t.Errorf("expected redundant 'Load average:' span to be removed from uptime section")
+	}
+
+	// 7. Check meter widths reflect calculated percentages
+	if !strings.Contains(html, `style="width: 50.0%;"`) {
+		t.Errorf("expected memory meter to have style width 50.0%%")
+	}
+	if !strings.Contains(html, `style="width: 25.0%;"`) {
+		t.Errorf("expected swap meter to have style width 25.0%%")
+	}
+	if !strings.Contains(html, `style="width: 20.0%;"`) {
+		t.Errorf("expected disk meter to have style width 20.0%%")
 	}
 }

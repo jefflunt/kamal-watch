@@ -245,6 +245,10 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 			fields := strings.Fields(lines[1])
 			if len(fields) >= 5 {
 				inv.Health.DiskUsage = fmt.Sprintf("%s/%s (%s)", fields[2], fields[1], fields[4])
+				percStr := strings.TrimSuffix(fields[4], "%")
+				if p, err := strconv.ParseFloat(percStr, 64); err == nil {
+					inv.Health.DiskUsedPerc = p
+				}
 			}
 		}
 	}
@@ -258,9 +262,19 @@ func (m *Monitor) PollServer(parentCtx context.Context, srv config.ServerConfig)
 				inv.Health.MemTotal = fields[1]
 				inv.Health.MemUsed = fields[2]
 				inv.Health.MemAvailable = fields[6]
+				totalBytes := parseBytes(fields[1])
+				usedBytes := parseBytes(fields[2])
+				if totalBytes > 0 {
+					inv.Health.MemUsedPerc = float64(usedBytes) / float64(totalBytes) * 100.0
+				}
 			} else if len(fields) >= 3 && fields[0] == "Swap:" {
 				inv.Health.SwapTotal = fields[1]
 				inv.Health.SwapUsed = fields[2]
+				swapTotalBytes := parseBytes(fields[1])
+				swapUsedBytes := parseBytes(fields[2])
+				if swapTotalBytes > 0 {
+					inv.Health.SwapUsedPerc = float64(swapUsedBytes) / float64(swapTotalBytes) * 100.0
+				}
 			}
 		}
 	}

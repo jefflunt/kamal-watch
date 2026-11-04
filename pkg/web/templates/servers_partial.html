@@ -21,7 +21,6 @@
 
           <div class="text-[#8b949e] font-mono text-[11px] space-x-3">
             <span>Uptime: <span class="text-[#c9d1d9]">{{ $srv.Health.Uptime }}</span></span>
-            <span>Load average: <span class="text-[#d29922] font-semibold">{{ $srv.Health.LoadAvg }}</span></span>
             <span>Polled: <span class="text-[#79c0ff]">{{ $srv.LastPolled.Format "15:04:05" }}</span></span>
           </div>
         </div>
@@ -72,7 +71,7 @@
                 <span class="text-[#c9d1d9]">{{ $srv.Health.DiskUsage }}</span>
               </div>
               <div class="meter-bar rounded-sm">
-                <div class="meter-fill-disk h-full" style="width: 10%;"></div>
+                <div class="meter-fill-disk h-full" style="width: {{ printf "%.1f" $srv.Health.DiskUsedPerc }}%;"></div>
               </div>
             </div>
 
@@ -92,10 +91,10 @@
             <div>
               <div class="flex justify-between items-center text-[#8b949e] mb-0.5">
                 <span class="text-[#bc8cff] font-semibold">Mem [Used / Total]</span>
-                <span class="text-[#c9d1d9]">{{ $srv.Health.MemUsed }} / {{ $srv.Health.MemTotal }} (Avail: {{ $srv.Health.MemAvailable }})</span>
+                <span class="text-[#c9d1d9]">{{ $srv.Health.MemUsed }} / {{ $srv.Health.MemTotal }}</span>
               </div>
               <div class="meter-bar rounded-sm">
-                <div class="meter-fill-mem h-full" style="width: 7%;"></div>
+                <div class="meter-fill-mem h-full" style="width: {{ printf "%.1f" $srv.Health.MemUsedPerc }}%;"></div>
               </div>
             </div>
 
@@ -106,7 +105,7 @@
                 <span class="text-[#c9d1d9]">{{ $srv.Health.SwapUsed }} / {{ $srv.Health.SwapTotal }}</span>
               </div>
               <div class="meter-bar rounded-sm">
-                <div class="meter-fill-swap h-full" style="width: 0%;"></div>
+                <div class="meter-fill-swap h-full" style="width: {{ printf "%.1f" $srv.Health.SwapUsedPerc }}%;"></div>
               </div>
             </div>
 

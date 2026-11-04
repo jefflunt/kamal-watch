@@ -90,6 +90,7 @@ type HostHealth struct {
 	CPUModel           string    `json:"cpu_model,omitempty"`
 	CPUCoresUsage      []float64 `json:"cpu_cores_usage,omitempty"`
 	DiskUsage          string    `json:"disk_usage"`
+	DiskUsedPerc       float64   `json:"disk_used_perc,omitempty"`
 	MemTotal           string    `json:"mem_total"`
 	MemUsed            string    `json:"mem_used"`
 	MemAvailable       string    `json:"mem_available"`

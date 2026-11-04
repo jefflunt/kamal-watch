@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-11-03
+
+### Fixed
+- Fixed memory, swap, and root disk meter progress bars by calculating dynamic utilization percentages (`MemUsedPerc`, `SwapUsedPerc`, `DiskUsedPerc`) from system telemetry instead of static widths.
+- Removed redundant `(Avail: ...)` label from the `Mem [Used / Total]` header.
+- Removed duplicated `Load average:` display from the server header line where system load averages are already included in the `Uptime` output.
+
 ## [0.7.1] - 2026-11-03
 
 ### Added
