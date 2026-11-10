@@ -1,0 +1,246 @@
+<!-- Per-Host Settings Screen Modal -->
+<div id="host-settings-modal" onclick="if(event.target === this) closeHostSettingsModal()" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" style="justify-content:center;box-sizing:border-box;">
+  <div class="bg-[#161b22] border border-[#30363d] rounded-md shadow-2xl flex flex-col max-h-[85vh] overflow-hidden" style="width:95%;max-width:680px;max-height:85vh;box-sizing:border-box;margin:auto;">
+    <!-- Modal Header -->
+    <div class="px-5 py-3.5 bg-[#1f242c] border-b border-[#30363d] flex items-center justify-between">
+      <h3 class="text-white font-mono font-bold text-sm sm:text-base flex items-center gap-2">
+        <svg class="w-4 h-4 text-[#58a6ff] shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M7.429 1.525a6.593 6.593 0 0 1 1.142 0c.036.003.108.036.137.146l.289 1.105c.147.56.55.997 1.077 1.182.527.185 1.117.07 1.554-.298l.84-.71c.08-.067.157-.05.18-.035.337.218.643.477.915.77.018.02.03.09-.015.163l-.624.975c-.324.507-.294 1.157.075 1.636.368.48.966.697 1.564.57l1.096-.233c.092-.02.158.03.176.054.246.33.453.69.617 1.073.013.03-.004.103-.095.148l-1.01.498c-.52.257-.847.78-.847 1.36 0 .58.327 1.103.847 1.36l1.01.498c.091.045.108.118.095.148a6.568 6.568 0 0 1-.617 1.073c-.018.024-.084.074-.176.054l-1.096-.233c-.598-.127-1.196.09-1.564.57-.369.48-.399 1.13-.075 1.636l.624.975c.045.073.033.143.015.163-.272.293-.578.552-.915.77-.023.015-.1.032-.18-.035l-.84-.71c-.437-.368-1.027-.483-1.554-.298-.527.185-.93.622-1.077 1.182l-.29 1.105c-.028.11-.1.143-.136.146a6.6 6.6 0 0 1-1.142 0c-.036-.003-.108-.036-.137-.146l-.289-1.105c-.147-.56-.55-.997-1.077-1.182-.527-.185-1.117-.07-1.554.298l-.84.71c-.08.067-.157.05-.18.035a6.54 6.54 0 0 1-.915-.77c-.018-.02-.03-.09.015-.163l.624-.975c.324-.507.294-1.157-.075-1.636-.368-.48-.966-.697-1.564-.57l-1.096.233c-.092.02-.158-.03-.176-.054a6.568 6.568 0 0 1-.617-1.073c-.013-.03.004-.103.095-.148l1.01-.498c.52-.257.847-.78.847-1.36 0-.58-.327-1.103-.847-1.36l-1.01-.498c-.091-.045-.108-.118-.095-.148.164-.383.371-.743.617-1.073.018-.024.084-.074.176-.054l1.096.233c.598.127 1.196-.09 1.564-.57.369-.48.399-1.13.075-1.636l-.624-.975c-.045-.073-.033-.143-.015-.163.272-.293.578-.552.915-.77.023-.015.1-.032.18.035l.84.71c.437.368 1.027.483 1.554.298.527-.185.93-.622 1.077-1.182l.29-1.105c.028-.11.1-.143.136-.146zM8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
+        </svg>
+        <span>Host Settings :: <span id="host-settings-target" class="text-[#58a6ff]"></span></span>
+      </h3>
+      <button type="button" onclick="closeHostSettingsModal()" title="Close (Esc)" class="text-[#8b949e] hover:text-white font-mono text-sm px-2 py-0.5 rounded hover:bg-[#30363d] transition-colors cursor-pointer">
+        ✕
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-5 bg-[#161b22] overflow-y-auto space-y-4 max-h-[70vh]">
+      <!-- Install Updates Command -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label for="host-settings-update-cmd" class="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#d29922]">
+            Install Updates Command
+          </label>
+          <span class="text-[10px] font-mono text-[#8b949e]">multi-line textarea</span>
+        </div>
+        <textarea id="host-settings-update-cmd" rows="4" placeholder="e.g.&#10;sudo apt-get update&#10;sudo apt-get dist-upgrade -y" class="w-full bg-[#0d1117] border border-[#30363d] focus-within:border-[#58a6ff] text-white font-mono text-xs rounded p-3 outline-none resize-y placeholder-[#6e7681]" spellcheck="false" autocomplete="off" oninput="handleHostSettingsInput()"></textarea>
+        <p class="text-[10px] font-mono text-[#8b949e]">
+          Shell commands executed in the background when clicking the updates pill.
+        </p>
+      </div>
+
+      <!-- Reboot Command -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label for="host-settings-reboot-cmd" class="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#f85149]">
+            Reboot Command
+          </label>
+          <span class="text-[10px] font-mono text-[#8b949e]">multi-line textarea</span>
+        </div>
+        <textarea id="host-settings-reboot-cmd" rows="4" placeholder="e.g.&#10;sudo reboot" class="w-full bg-[#0d1117] border border-[#30363d] focus-within:border-[#58a6ff] text-white font-mono text-xs rounded p-3 outline-none resize-y placeholder-[#6e7681]" spellcheck="false" autocomplete="off" oninput="handleHostSettingsInput()"></textarea>
+        <p class="text-[10px] font-mono text-[#8b949e]">
+          Shell commands executed in the background when clicking the reboot pill.
+        </p>
+      </div>
+
+      <!-- Status Feedback -->
+      <div id="host-settings-status" class="hidden text-xs font-mono text-[#7ee787] bg-[#238636]/10 border border-[#238636]/30 px-3 py-1.5 rounded">
+        Settings saved.
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="px-5 py-3.5 bg-[#1f242c] border-t border-[#30363d] flex items-center justify-between">
+      <div class="text-[11px] font-mono text-[#8b949e] hidden sm:block">
+        Commands persist locally per host &bull; <span class="px-1.5 py-0.5 rounded bg-[#0d1117] border border-[#30363d] text-white">Esc</span> to close
+      </div>
+      <div class="flex items-center justify-end gap-3 ml-auto">
+        <button type="button" id="host-settings-close-btn" onclick="closeHostSettingsModal()" class="px-4 py-1.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] hover:text-white font-mono text-xs border border-[#30363d] transition-colors cursor-pointer">
+          Close
+        </button>
+        <button type="button" id="host-settings-save-btn" onclick="saveHostSettingsModal()" class="px-4 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-mono text-xs font-semibold transition-colors cursor-pointer">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let activeSettingsHost = '';
+  let activeSettingsServer = '';
+  const runningHostActions = new Map();
+
+  function getHostCmdKey(type, host) {
+    return 'kamal-watch-cmd-' + type + '-' + host;
+  }
+
+  function getHostCmd(type, host, serverName) {
+    if (!host && !serverName) return '';
+    return (host ? localStorage.getItem(getHostCmdKey(type, host)) : null) ||
+           (serverName ? localStorage.getItem(getHostCmdKey(type, serverName)) : null) ||
+           '';
+  }
+
+  function setHostCmd(type, host, val) {
+    if (host) {
+      localStorage.setItem(getHostCmdKey(type, host), val);
+    }
+  }
+
+  function openHostSettingsModal(serverName, host) {
+    activeSettingsServer = serverName;
+    activeSettingsHost = host;
+
+    const targetSpan = document.getElementById('host-settings-target');
+    if (targetSpan) targetSpan.textContent = `${serverName} (${host})`;
+
+    const updateArea = document.getElementById('host-settings-update-cmd');
+    const rebootArea = document.getElementById('host-settings-reboot-cmd');
+
+    if (updateArea) updateArea.value = getHostCmd('update', host, serverName);
+    if (rebootArea) rebootArea.value = getHostCmd('reboot', host, serverName);
+
+    const statusEl = document.getElementById('host-settings-status');
+    if (statusEl) statusEl.classList.add('hidden');
+
+    const modal = document.getElementById('host-settings-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      if (updateArea) {
+        setTimeout(() => updateArea.focus(), 50);
+      }
+    }
+  }
+
+  function closeHostSettingsModal() {
+    const modal = document.getElementById('host-settings-modal');
+    if (modal) modal.classList.add('hidden');
+    activeSettingsHost = '';
+    activeSettingsServer = '';
+  }
+
+  function handleHostSettingsInput() {
+    if (!activeSettingsHost) return;
+    const updateArea = document.getElementById('host-settings-update-cmd');
+    const rebootArea = document.getElementById('host-settings-reboot-cmd');
+
+    if (updateArea) setHostCmd('update', activeSettingsHost, updateArea.value);
+    if (rebootArea) setHostCmd('reboot', activeSettingsHost, rebootArea.value);
+
+    // Also mirror to activeSettingsServer name if different
+    if (activeSettingsServer && activeSettingsServer !== activeSettingsHost) {
+      if (updateArea) setHostCmd('update', activeSettingsServer, updateArea.value);
+      if (rebootArea) setHostCmd('reboot', activeSettingsServer, rebootArea.value);
+    }
+  }
+
+  function saveHostSettingsModal() {
+    handleHostSettingsInput();
+    const statusEl = document.getElementById('host-settings-status');
+    if (statusEl) {
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = 'Settings saved.';
+      setTimeout(() => {
+        closeHostSettingsModal();
+      }, 350);
+    } else {
+      closeHostSettingsModal();
+    }
+  }
+
+  function updatePillVisualState(serverName, type, isRunning) {
+    const pillId = `pill-${type}-${serverName}`;
+    const pill = document.getElementById(pillId);
+    if (!pill) return;
+
+    const spinner = pill.querySelector('.pill-spinner');
+    const label = pill.querySelector('.pill-label');
+
+    if (isRunning) {
+      pill.disabled = true;
+      pill.classList.add('opacity-75', 'cursor-not-allowed');
+      if (spinner) spinner.classList.remove('hidden');
+      if (label) {
+        if (!label.dataset.origText) {
+          label.dataset.origText = label.textContent;
+        }
+        label.textContent = type === 'reboot' ? 'rebooting...' : 'updating...';
+      }
+    } else {
+      pill.disabled = false;
+      pill.classList.remove('opacity-75', 'cursor-not-allowed');
+      if (spinner) spinner.classList.add('hidden');
+      if (label && label.dataset.origText) {
+        label.textContent = label.dataset.origText;
+        delete label.dataset.origText;
+      }
+    }
+  }
+
+  function applyRunningPillStates() {
+    for (const [actionKey, running] of runningHostActions.entries()) {
+      if (running) {
+        const [serverName, type] = actionKey.split(':');
+        updatePillVisualState(serverName, type, true);
+      }
+    }
+  }
+
+  async function executePillAction(serverName, host, type) {
+    const actionKey = `${serverName}:${type}`;
+    if (runningHostActions.get(actionKey)) {
+      return; // Already executing
+    }
+
+    const cmd = getHostCmd(type, host, serverName).trim();
+    if (!cmd) {
+      // Prompt user to configure the command in host settings dialog
+      openHostSettingsModal(serverName, host);
+      const targetArea = type === 'reboot' 
+        ? document.getElementById('host-settings-reboot-cmd') 
+        : document.getElementById('host-settings-update-cmd');
+      if (targetArea) targetArea.focus();
+      return;
+    }
+
+    runningHostActions.set(actionKey, true);
+    updatePillVisualState(serverName, type, true);
+
+    try {
+      const res = await fetch('/api/server/' + encodeURIComponent(serverName) + '/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd })
+      });
+      // Response output can be read or logged
+      await res.json().catch(() => null);
+    } catch (err) {
+      // For reboot commands, the host goes offline during reboot which may reset/abort the request; that's expected
+      console.warn(`Action ${type} on ${serverName}:`, err);
+    } finally {
+      runningHostActions.delete(actionKey);
+      updatePillVisualState(serverName, type, false);
+
+      if (typeof refreshServersData === 'function') {
+        setTimeout(refreshServersData, 600);
+      }
+    }
+  }
+
+  // Backward-compatible alias
+  window.openCommandModal = function(serverName, host, type) {
+    executePillAction(serverName, host, type);
+  };
+
+  // Keyboard shortcut: Esc to close modal
+  document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('host-settings-modal');
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    if (e.key === 'Escape') {
+      closeHostSettingsModal();
+    }
+  });
+</script>

@@ -41,7 +41,7 @@
 {{ template "servers_partial.html" . }}
   </main>
 
-  {{ template "command_modal.html" . }}
+  {{ template "host_settings_modal.html" . }}
 
   <!-- Interactive Slide-over / Modal Log Streamer (HTOP Console Style) -->
   <div id="log-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex justify-end transition-opacity">
@@ -272,14 +272,22 @@
 
           // Re-apply persisted CPU view preference (unified vs per-core)
           applyCpuView();
+
+          // Re-apply running pill states
+          if (typeof applyRunningPillStates === 'function') {
+            applyRunningPillStates();
+          }
         }
       } catch (err) {
         console.error('Auto-refresh error:', err);
       }
     }
 
-    // Initialize persisted CPU view on initial load
+    // Initialize persisted CPU view and pill states on initial load
     applyCpuView();
+    if (typeof applyRunningPillStates === 'function') {
+      applyRunningPillStates();
+    }
 
     // Poll every 4 seconds (less than 5s requirement)
     setInterval(refreshServersData, 4000);

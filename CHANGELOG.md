@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-10
+
+### Added
+- Per-host settings dialog accessible via a gear icon button positioned to the left of the hostname and IP address in the server headers across the main dashboard and host detail views.
+- Separate multi-line textarea inputs within the host settings dialog for configuring custom "Install updates" and "Reboot" shell commands.
+- Non-modal background command execution: clicking the reboot or updates pill directly triggers the configured command in the background via `POST /api/server/{name}/run` without modal takeover.
+- Live animated spinner on active pills during command execution to indicate background progress, automatically preserving original labels upon completion.
+- Telemetry auto-refresh state preservation for running actions, ensuring in-flight background tasks retain their active spinner state across periodic 4-second DOM updates.
+
+### Changed
+- Replaced screen-takeover command confirmation modal with the dedicated per-host settings modal and direct pill background actions.
+
 ## [0.8.2] - 2026-11-04
 
 ### Changed

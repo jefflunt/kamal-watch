@@ -388,20 +388,26 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 		t.Fatalf("execute servers_partial.html: %v", err)
 	}
 	partialHTML := partialBuf.String()
-	if !strings.Contains(partialHTML, ">reboot</button>") {
-		t.Errorf("expected servers_partial.html to contain '>reboot</button>', got: %s", partialHTML)
+	if !strings.Contains(partialHTML, "openHostSettingsModal('prod-node-01', '10.0.0.10')") {
+		t.Errorf("expected servers_partial.html to include gear button opening host settings, got: %s", partialHTML)
 	}
-	if !strings.Contains(partialHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'reboot')") {
-		t.Errorf("expected servers_partial.html to call openCommandModal for reboot, got: %s", partialHTML)
+	if !strings.Contains(partialHTML, "executePillAction('prod-node-01', '10.0.0.10', 'reboot')") {
+		t.Errorf("expected servers_partial.html to call executePillAction for reboot, got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "reboot</span>") {
+		t.Errorf("expected servers_partial.html to contain reboot label, got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, "pill-spinner") {
+		t.Errorf("expected servers_partial.html to contain pill-spinner placeholder, got: %s", partialHTML)
 	}
 	if !strings.Contains(partialHTML, "linux-image-generic, libc6") {
 		t.Errorf("expected servers_partial.html tooltip to list reboot packages, got: %s", partialHTML)
 	}
-	if !strings.Contains(partialHTML, ">5 updates</button>") {
-		t.Errorf("expected servers_partial.html to contain '>5 updates</button>', got: %s", partialHTML)
+	if !strings.Contains(partialHTML, "executePillAction('prod-node-01', '10.0.0.10', 'update')") {
+		t.Errorf("expected servers_partial.html to call executePillAction for update, got: %s", partialHTML)
 	}
-	if !strings.Contains(partialHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'update')") {
-		t.Errorf("expected servers_partial.html to call openCommandModal for update, got: %s", partialHTML)
+	if !strings.Contains(partialHTML, "5 updates</span>") {
+		t.Errorf("expected servers_partial.html to contain '5 updates</span>', got: %s", partialHTML)
 	}
 
 	var serverBuf strings.Builder
@@ -409,20 +415,17 @@ func TestTemplatesRenderHostMaintenanceBadges(t *testing.T) {
 		t.Fatalf("execute server.html: %v", err)
 	}
 	serverHTML := serverBuf.String()
-	if !strings.Contains(serverHTML, ">reboot</button>") {
-		t.Errorf("expected server.html to contain '>reboot</button>', got: %s", serverHTML)
+	if !strings.Contains(serverHTML, "openHostSettingsModal('prod-node-01', '10.0.0.10')") {
+		t.Errorf("expected server.html to include gear button opening host settings, got: %s", serverHTML)
 	}
-	if !strings.Contains(serverHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'reboot')") {
-		t.Errorf("expected server.html to call openCommandModal for reboot, got: %s", serverHTML)
+	if !strings.Contains(serverHTML, "executePillAction('prod-node-01', '10.0.0.10', 'reboot')") {
+		t.Errorf("expected server.html to call executePillAction for reboot, got: %s", serverHTML)
 	}
-	if !strings.Contains(serverHTML, ">5 updates</button>") {
-		t.Errorf("expected server.html to contain '>5 updates</button>', got: %s", serverHTML)
+	if !strings.Contains(serverHTML, "executePillAction('prod-node-01', '10.0.0.10', 'update')") {
+		t.Errorf("expected server.html to call executePillAction for update, got: %s", serverHTML)
 	}
-	if !strings.Contains(serverHTML, "openCommandModal('prod-node-01', '10.0.0.10', 'update')") {
-		t.Errorf("expected server.html to call openCommandModal for update, got: %s", serverHTML)
-	}
-	if !strings.Contains(serverHTML, "Run the following command on") {
-		t.Errorf("expected server.html to include command takeover modal, got: %s", serverHTML)
+	if !strings.Contains(serverHTML, "id=\"host-settings-modal\"") {
+		t.Errorf("expected server.html to include host settings modal, got: %s", serverHTML)
 	}
 }
 
@@ -644,15 +647,15 @@ func TestHandleRunCommand(t *testing.T) {
 	}
 }
 
-func TestCommandModalTemplateStructure(t *testing.T) {
+func TestHostSettingsModalTemplateStructure(t *testing.T) {
 	srv, err := NewServer(config.DefaultConfig(), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
 
 	var buf strings.Builder
-	if err := srv.tmpl.ExecuteTemplate(&buf, "command_modal.html", nil); err != nil {
-		t.Fatalf("failed to execute command_modal.html: %v", err)
+	if err := srv.tmpl.ExecuteTemplate(&buf, "host_settings_modal.html", nil); err != nil {
+		t.Fatalf("failed to execute host_settings_modal.html: %v", err)
 	}
 	html := buf.String()
 
@@ -660,26 +663,31 @@ func TestCommandModalTemplateStructure(t *testing.T) {
 		desc     string
 		expected string
 	}{
-		{"modal root", `id="cmd-modal"`},
+		{"modal root", `id="host-settings-modal"`},
 		{"viewport height constraint", `max-h-[85vh]`},
 		{"header dividing border", `border-b border-[#30363d]`},
-		{"host placeholder", `id="cmd-modal-host"`},
-		{"command input label", `Command`},
-		{"command input element", `id="cmd-modal-input"`},
-		{"output section container", `id="cmd-modal-output-section"`},
-		{"output status badge", `id="cmd-modal-status-badge"`},
-		{"auto-scroll toggle", `id="cmd-modal-autoscroll"`},
-		{"clear output button", `clearCmdOutput()`},
-		{"scrollable output box", `id="cmd-modal-output-box"`},
-		{"scrollable output vertical overflow", `overflow-y-auto`},
-		{"output height constraint", `max-h-[55vh]`},
-		{"footer action bar", `id="cmd-modal-cancel-btn"`},
-		{"action submit button", `id="cmd-modal-yes-btn"`},
+		{"target host placeholder", `id="host-settings-target"`},
+		{"update command label", `Install Updates Command`},
+		{"update command textarea", `id="host-settings-update-cmd"`},
+		{"update textarea multi-line rows", `<textarea id="host-settings-update-cmd" rows="4"`},
+		{"update textarea multi-line indicator", `multi-line textarea`},
+		{"reboot command label", `Reboot Command`},
+		{"reboot command textarea", `id="host-settings-reboot-cmd"`},
+		{"reboot textarea multi-line rows", `<textarea id="host-settings-reboot-cmd" rows="4"`},
+		{"textarea resize-y support", `resize-y`},
+		{"status feedback", `id="host-settings-status"`},
+		{"close button", `id="host-settings-close-btn"`},
+		{"save button", `id="host-settings-save-btn"`},
+		{"background executor", `executePillAction`},
+		{"running state tracker", `runningHostActions`},
+		{"pill spinner update logic", `rebooting...`},
+		{"pill update spinner label", `updating...`},
+		{"legacy compatibility alias", `window.openCommandModal`},
 	}
 
 	for _, c := range checks {
 		if !strings.Contains(html, c.expected) {
-			t.Errorf("expected command_modal.html to contain %q (%s)", c.expected, c.desc)
+			t.Errorf("expected host_settings_modal.html to contain %q (%s)", c.expected, c.desc)
 		}
 	}
 }
