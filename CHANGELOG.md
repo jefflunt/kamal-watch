@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-11-13
+
+### Changed
+- Shortened inline SSH dial and offline error messages in server headers to a concise `OFFLINE` badge matching `ONLINE` pill styling, displaying full diagnostic error messages on hover via tooltip.
+
+### Added
+- Minimum 5-second animated spinner duration on the reboot pill to provide clear visual feedback while the host initiates reboot.
+- Dynamic reboot pill preservation across background telemetry refresh intervals, ensuring the active spinner stays visible alongside the `OFFLINE` pill until the 5-second duration completes.
+
 ## [0.9.0] - 2026-11-10
 
 ### Added

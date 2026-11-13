@@ -35,7 +35,7 @@
         <span class="text-[#8b949e]">({{ .Host }})</span>
       </div>
 
-      <div class="flex items-center gap-3 text-xs font-mono">
+      <div class="flex items-center gap-3 text-xs font-mono" data-server-header="{{ .ServerName }}">
         {{ if .Online }}
           {{ if .Health.RebootRequired }}
             <button type="button" id="pill-reboot-{{ .ServerName }}" onclick="executePillAction('{{ .ServerName }}', '{{ .Host }}', 'reboot')" class="px-1.5 py-0.2 rounded border border-[#da3633] bg-[#da3633]/20 hover:bg-[#da3633]/40 text-[#f85149] font-semibold cursor-pointer transition-colors inline-flex items-center gap-1" {{ if .Health.RebootRequiredPkgs }}title="Packages requiring reboot: {{ join .Health.RebootRequiredPkgs ", " }}"{{ end }}>
@@ -50,9 +50,7 @@
             </button>
           {{ end }}
         {{ end }}
-        <span class="px-1.5 py-0.2 rounded border {{ if .Online }}border-[#238636] bg-[#238636]/20 text-[#7ee787]{{ else }}border-[#da3633] bg-[#da3633]/20 text-[#f85149]{{ end }}">
-          {{ if .Online }}ONLINE{{ else }}OFFLINE{{ end }}
-        </span>
+        <span class="px-1.5 py-0.2 rounded border {{ if .Online }}border-[#238636] bg-[#238636]/20 text-[#7ee787]{{ else }}border-[#da3633] bg-[#da3633]/20 text-[#f85149]{{ end }}" {{ if and (not .Online) .Error }}title="{{ .Error }}"{{ end }}>{{ if .Online }}ONLINE{{ else }}OFFLINE{{ end }}</span>
         <span class="text-[#30363d]">|</span>
         <a href="/" class="text-[#8b949e] hover:text-white">[ESC Back]</a>
       </div>

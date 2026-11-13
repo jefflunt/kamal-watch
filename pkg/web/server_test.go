@@ -682,6 +682,8 @@ func TestHostSettingsModalTemplateStructure(t *testing.T) {
 		{"running state tracker", `runningHostActions`},
 		{"pill spinner update logic", `rebooting...`},
 		{"pill update spinner label", `updating...`},
+		{"reboot minimum 5s spinner", `elapsed < 5000`},
+		{"dynamic pill keeper on refresh", `ensurePillElement`},
 		{"legacy compatibility alias", `window.openCommandModal`},
 	}
 
@@ -689,5 +691,59 @@ func TestHostSettingsModalTemplateStructure(t *testing.T) {
 		if !strings.Contains(html, c.expected) {
 			t.Errorf("expected host_settings_modal.html to contain %q (%s)", c.expected, c.desc)
 		}
+	}
+}
+
+func TestTemplatesRenderOfflinePillAndRebootSpinnerLogic(t *testing.T) {
+	srv, err := NewServer(config.DefaultConfig(), nil, nil)
+	if err != nil {
+		t.Fatalf("failed to create server: %v", err)
+	}
+
+	offlineInv := &models.ServerInventory{
+		ServerName: "prod-node-02",
+		Host:       "10.0.0.20",
+		Online:     false,
+		Error:      "ssh dial 10.0.0.20:22: dial tcp 10.0.0.20:22: connect: connection refused",
+		Health:     models.HostHealth{},
+		Apps:       make(map[string]*models.KamalApp),
+	}
+
+	var partialBuf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&partialBuf, "servers_partial.html", DashboardData{
+		Servers: []*models.ServerInventory{offlineInv},
+		Version: kamalwatch.Version(),
+	}); err != nil {
+		t.Fatalf("execute servers_partial.html: %v", err)
+	}
+	partialHTML := partialBuf.String()
+
+	if !strings.Contains(partialHTML, `>OFFLINE</span>`) {
+		t.Errorf("expected servers_partial.html to contain shortened OFFLINE pill, got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, `title="ssh dial 10.0.0.20:22: dial tcp 10.0.0.20:22: connect: connection refused"`) {
+		t.Errorf("expected servers_partial.html to contain error in title tooltip, got: %s", partialHTML)
+	}
+	if strings.Contains(partialHTML, "OFFLINE: ssh dial") {
+		t.Errorf("expected servers_partial.html NOT to contain raw unshortened 'OFFLINE: ssh dial', got: %s", partialHTML)
+	}
+	if !strings.Contains(partialHTML, `data-server-header="prod-node-02"`) {
+		t.Errorf("expected servers_partial.html to include data-server-header, got: %s", partialHTML)
+	}
+
+	var serverBuf strings.Builder
+	if err := srv.tmpl.ExecuteTemplate(&serverBuf, "server.html", offlineInv); err != nil {
+		t.Fatalf("execute server.html: %v", err)
+	}
+	serverHTML := serverBuf.String()
+
+	if !strings.Contains(serverHTML, `>OFFLINE</span>`) {
+		t.Errorf("expected server.html to contain OFFLINE pill, got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, `title="ssh dial 10.0.0.20:22: dial tcp 10.0.0.20:22: connect: connection refused"`) {
+		t.Errorf("expected server.html to contain error in title tooltip, got: %s", serverHTML)
+	}
+	if !strings.Contains(serverHTML, `data-server-header="prod-node-02"`) {
+		t.Errorf("expected server.html to include data-server-header, got: %s", serverHTML)
 	}
 }

@@ -150,9 +150,35 @@
     }
   }
 
+  function ensurePillElement(serverName, type) {
+    const pillId = `pill-${type}-${serverName}`;
+    let pill = document.getElementById(pillId);
+    if (!pill) {
+      const header = document.querySelector(`[data-server-header="${serverName}"]`);
+      if (header) {
+        pill = document.createElement('button');
+        pill.type = 'button';
+        pill.id = pillId;
+        pill.dataset.dynamic = 'true';
+        pill.className = type === 'reboot'
+          ? 'bg-[#da3633]/20 hover:bg-[#da3633]/40 border border-[#da3633] text-[#f85149] px-1.5 py-0.2 rounded text-[10px] font-semibold cursor-pointer transition-colors inline-flex items-center gap-1'
+          : 'bg-[#d29922]/20 hover:bg-[#d29922]/40 border border-[#d29922] text-[#d29922] px-1.5 py-0.2 rounded text-[10px] font-semibold cursor-pointer transition-colors inline-flex items-center gap-1';
+        pill.innerHTML = `
+          <span class="pill-spinner"><svg class="animate-spin h-2.5 w-2.5 text-current inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg></span>
+          <span class="pill-label">${type === 'reboot' ? 'rebooting...' : 'updating...'}</span>
+        `;
+        header.appendChild(pill);
+      }
+    }
+    return pill;
+  }
+
   function updatePillVisualState(serverName, type, isRunning) {
     const pillId = `pill-${type}-${serverName}`;
-    const pill = document.getElementById(pillId);
+    let pill = document.getElementById(pillId);
+    if (!pill && isRunning) {
+      pill = ensurePillElement(serverName, type);
+    }
     if (!pill) return;
 
     const spinner = pill.querySelector('.pill-spinner');
@@ -169,6 +195,10 @@
         label.textContent = type === 'reboot' ? 'rebooting...' : 'updating...';
       }
     } else {
+      if (pill.dataset.dynamic === 'true') {
+        pill.remove();
+        return;
+      }
       pill.disabled = false;
       pill.classList.remove('opacity-75', 'cursor-not-allowed');
       if (spinner) spinner.classList.add('hidden');
@@ -205,6 +235,7 @@
       return;
     }
 
+    const startTime = Date.now();
     runningHostActions.set(actionKey, true);
     updatePillVisualState(serverName, type, true);
 
@@ -220,6 +251,12 @@
       // For reboot commands, the host goes offline during reboot which may reset/abort the request; that's expected
       console.warn(`Action ${type} on ${serverName}:`, err);
     } finally {
+      if (type === 'reboot') {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 5000) {
+          await new Promise(r => setTimeout(r, 5000 - elapsed));
+        }
+      }
       runningHostActions.delete(actionKey);
       updatePillVisualState(serverName, type, false);
 
