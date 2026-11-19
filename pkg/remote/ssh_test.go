@@ -15,6 +15,7 @@ import (
 
 	"github.com/jefflunt/kamal-watch/config"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
@@ -229,5 +230,96 @@ func TestSSHPool_ExponentialBackoffAndCooldown(t *testing.T) {
 	}
 	if _, exists := pool.backoff["web-01"]; exists {
 		t.Errorf("expected backoff state to be cleared after successful dial")
+	}
+}
+
+func encryptedTestKey(t *testing.T) ([]byte, ed25519.PrivateKey) {
+	t.Helper()
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate ed25519 key: %v", err)
+	}
+	block, err := ssh.MarshalPrivateKeyWithPassphrase(priv, "", []byte("secret"))
+	if err != nil {
+		t.Fatalf("marshal encrypted key: %v", err)
+	}
+	return pem.EncodeToMemory(block), priv
+}
+
+func agentWith(keyring agent.Agent) func() (agent.Agent, error) {
+	return func() (agent.Agent, error) { return keyring, nil }
+}
+
+func noAgent() (agent.Agent, error) { return nil, nil }
+
+func TestSignerForKey_PlainKeyNeverDialsAgent(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate ed25519 key: %v", err)
+	}
+	block, err := ssh.MarshalPrivateKey(priv, "")
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+
+	brokenAgent := func() (agent.Agent, error) {
+		t.Fatal("agent dialed for a key without a passphrase")
+		return nil, nil
+	}
+	signer, err := signerForKey(pem.EncodeToMemory(block), brokenAgent)
+	if err != nil {
+		t.Fatalf("signerForKey: %v", err)
+	}
+	want, err := ssh.NewPublicKey(priv.Public())
+	if err != nil {
+		t.Fatalf("new public key: %v", err)
+	}
+	if string(signer.PublicKey().Marshal()) != string(want.Marshal()) {
+		t.Fatalf("got signer for a different key")
+	}
+}
+
+func TestSignerForKey_PassphraseKeyUsesMatchingAgentKey(t *testing.T) {
+	keyBytes, priv := encryptedTestKey(t)
+	_, other, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate ed25519 key: %v", err)
+	}
+
+	keyring := agent.NewKeyring()
+	for _, k := range []ed25519.PrivateKey{other, priv} {
+		if err := keyring.Add(agent.AddedKey{PrivateKey: k}); err != nil {
+			t.Fatalf("add key to agent: %v", err)
+		}
+	}
+
+	signer, err := signerForKey(keyBytes, agentWith(keyring))
+	if err != nil {
+		t.Fatalf("signerForKey: %v", err)
+	}
+	want, err := ssh.NewPublicKey(priv.Public())
+	if err != nil {
+		t.Fatalf("new public key: %v", err)
+	}
+	if string(signer.PublicKey().Marshal()) != string(want.Marshal()) {
+		t.Fatalf("got signer for a different key")
+	}
+}
+
+func TestSignerForKey_PassphraseKeyWithoutAgentFails(t *testing.T) {
+	keyBytes, _ := encryptedTestKey(t)
+
+	_, err := signerForKey(keyBytes, noAgent)
+	if err == nil || !strings.Contains(err.Error(), "SSH_AUTH_SOCK") {
+		t.Fatalf("expected error pointing at SSH_AUTH_SOCK, got %v", err)
+	}
+}
+
+func TestSignerForKey_PassphraseKeyNotInAgentFails(t *testing.T) {
+	keyBytes, _ := encryptedTestKey(t)
+
+	_, err := signerForKey(keyBytes, agentWith(agent.NewKeyring()))
+	if err == nil || !strings.Contains(err.Error(), "not loaded") {
+		t.Fatalf("expected not loaded error, got %v", err)
 	}
 }
