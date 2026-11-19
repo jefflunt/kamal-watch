@@ -1,9 +1,12 @@
 package remote
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,6 +15,7 @@ import (
 	"github.com/jefflunt/kamal-watch/config"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
@@ -163,6 +167,40 @@ func hostKeyCallbackForServer(cfg config.ServerConfig) (ssh.HostKeyCallback, err
 	return cb, nil
 }
 
+// signerForKey parses a private key. A passphrase-protected key is used
+// through the ssh agent instead, picking the agent key that matches it.
+// dialAgent returns a nil agent when none is configured.
+func signerForKey(keyBytes []byte, dialAgent func() (agent.Agent, error)) (ssh.Signer, error) {
+	signer, err := ssh.ParsePrivateKey(keyBytes)
+	if err == nil {
+		return signer, nil
+	}
+
+	var missing *ssh.PassphraseMissingError
+	if !errors.As(err, &missing) || missing.PublicKey == nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	agentClient, err := dialAgent()
+	if err != nil {
+		return nil, err
+	}
+	if agentClient == nil {
+		return nil, errors.New("key has a passphrase; set SSH_AUTH_SOCK to an ssh agent holding it")
+	}
+
+	signers, err := agentClient.Signers()
+	if err != nil {
+		return nil, fmt.Errorf("list ssh agent keys: %w", err)
+	}
+	want := missing.PublicKey.Marshal()
+	for _, s := range signers {
+		if bytes.Equal(s.PublicKey().Marshal(), want) {
+			return s, nil
+		}
+	}
+	return nil, errors.New("key has a passphrase and is not loaded in the ssh agent (run ssh-add)")
+}
+
 func (p *SSHPool) GetClient(serverName string) (*ssh.Client, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -204,9 +242,30 @@ func (p *SSHPool) GetClient(serverName string) (*ssh.Client, error) {
 		return nil, fmt.Errorf("read private key %s: %w", keyPath, err)
 	}
 
-	signer, err := ssh.ParsePrivateKey(keyBytes)
+	// The agent is only dialed for a passphrase-protected key, and stays
+	// open until the handshake below has signed with it.
+	var agentConn net.Conn
+	defer func() {
+		if agentConn != nil {
+			_ = agentConn.Close()
+		}
+	}()
+	dialAgent := func() (agent.Agent, error) {
+		sock := os.Getenv("SSH_AUTH_SOCK")
+		if sock == "" {
+			return nil, nil
+		}
+		conn, err := net.Dial("unix", sock)
+		if err != nil {
+			return nil, fmt.Errorf("connect to ssh agent %s: %w", sock, err)
+		}
+		agentConn = conn
+		return agent.NewClient(conn), nil
+	}
+
+	signer, err := signerForKey(keyBytes, dialAgent)
 	if err != nil {
-		return nil, fmt.Errorf("parse private key %s: %w", keyPath, err)
+		return nil, fmt.Errorf("private key %s: %w", keyPath, err)
 	}
 
 	hostKeyCallback, err := hostKeyCallbackForServer(cfg)

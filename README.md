@@ -29,6 +29,7 @@ Inspired by `htop`, the interface favors dense, monospaced terminal telemetry ov
    ssh-keygen -t ed25519 -f ~/.ssh/kamal_watch -N "" -C "kamal-watch"
    ssh-copy-id -i ~/.ssh/kamal_watch.pub deploy@10.0.1.10
    ```
+   A key with a passphrase also works if it is loaded in `ssh-agent` and `SSH_AUTH_SOCK` is set; `kamal-watch` signs with the agent's copy of that key. In Docker Desktop, pass the host agent in with `-v /run/host-services/ssh-auth.sock:/agent.sock -e SSH_AUTH_SOCK=/agent.sock`.
 
 ### 1. Build
 
